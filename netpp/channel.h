@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <mutex>
 namespace net
 {
 using namespace asio;
@@ -48,9 +49,11 @@ public:
 	void join(const connection_ptr& conn);
 	void leave(const connection_ptr& conn);
 	void stop(const asio::error_code& ec);
+    void stop(connection::id id, const asio::error_code& ec);
 	void send_msg(connection::id id, byte_buffer&& msg);
 
 private:
+    std::mutex guard_;
 	std::map<connection::id, connection_ptr> connections_;
 };
 

@@ -20,7 +20,7 @@ namespace net
 
 //----------------------------------------------------------------------
 
-struct connector
+struct connector : public std::enable_shared_from_this<connector>
 {
 	using id = uint64_t;
 	using on_msg_t = std::function<void(connection::id, const byte_buffer&)>;
@@ -32,6 +32,7 @@ struct connector
 	virtual void start() = 0;
 
 	void stop();
+    void stop(connection::id id);
 
 	void send_msg(connection::id id, byte_buffer&& msg);
 	void on_msg(connection::id id, const byte_buffer& msg);

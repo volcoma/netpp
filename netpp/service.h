@@ -24,7 +24,7 @@ inline std::vector<std::thread>& workers()
             std::thread th([]()
             {
                 auto io = context();
-                while(!io->stopped())
+                while(io)
                 {
                     using namespace std::chrono_literals;
                     std::this_thread::sleep_for(100ms);

@@ -1,6 +1,6 @@
 #pragma once
 #include "connector.h"
-
+#include <mutex>
 namespace net
 {
 
@@ -15,6 +15,8 @@ public:
 								on_disconnect_t on_disconnect, on_msg_t on_msg);
 	void send_msg(connection::id id, byte_buffer&& msg);
 
+    void disconnect(connection::id id);
+    void remove_connector(connector::id id);
 private:
 	struct connector_info
 	{
@@ -23,6 +25,7 @@ private:
 		on_connect_t on_connect;
 		on_disconnect_t on_disconnect;
 	};
+    std::mutex guard_;
 	std::map<connector::id, connector_info> connectors_;
 	std::map<connection::id, connector::id> connections_;
 };

@@ -9,17 +9,35 @@ int main(int argc, char* argv[])
 {
 	net::init_services();
 
-    if(argc != 3)
+    if(argc != 2)
     {
-        std::cerr << "Usage: server <tcp_ip> <listen_port>\n";
+        std::cerr << "Usage: <server/client/both>" << std::endl;;
         return 1;
     }
-    std::string ip = argv[1];
-    std::string port = argv[2];
-    
-	//tcp::test(ip, port);
-	tcp_ssl::test(ip, port);
-	//tcp_local::test(ip, port);
+    std::string what = argv[1];
+    bool server = false;
+    bool client = false;
+    if(what == "server")
+    {
+        server = true;
+    }
+    if(what == "client")
+    {
+        client = true;
+    }
+    if(what == "both")
+    {
+        server = true;
+        client = true;
+    }
+    else
+    {
+        std::cerr << "Usage: <server/client/both>" << std::endl;;
+        return 1;
+    }
+	tcp::test(server, client);
+	tcp_ssl::test(server, client);
+	tcp_local::test(server, client);
 
 	net::deinit_services();
 	return 0;

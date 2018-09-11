@@ -93,10 +93,10 @@ private:
 	io_context::strand reader_;
 	io_context::strand writer_;
 	std::shared_ptr<socket_type> socket_;
-	steady_timer input_deadline_;
+	//steady_timer input_deadline_;
 	std::deque<byte_buffer> output_queue_;
 	steady_timer non_empty_output_queue_;
-	steady_timer output_deadline_;
+	//steady_timer output_deadline_;
 	std::atomic<bool> connected{false};
 };
 
@@ -106,12 +106,12 @@ tcp_connection<socket_type>::tcp_connection(std::shared_ptr<socket_type> socket,
 	, reader_(io_context)
 	, writer_(io_context)
 	, socket_(socket)
-	, input_deadline_(io_context)
+	//, input_deadline_(io_context)
 	, non_empty_output_queue_(io_context)
-	, output_deadline_(io_context)
+	//, output_deadline_(io_context)
 {
-	input_deadline_.expires_at(steady_timer::time_point::max());
-	output_deadline_.expires_at(steady_timer::time_point::max());
+	//input_deadline_.expires_at(steady_timer::time_point::max());
+	//output_deadline_.expires_at(steady_timer::time_point::max());
 	// The non_empty_output_queue_ steady_timer is set to the maximum time
 	// point whenever the output queue is empty. This ensures that the output
 	// actor stays asleep until a message is put into the queue.
@@ -121,24 +121,24 @@ tcp_connection<socket_type>::tcp_connection(std::shared_ptr<socket_type> socket,
 template <typename socket_type>
 void tcp_connection<socket_type>::start()
 {
+    connected = true;
 	start_read();
 
 	{
-		std::lock_guard<std::mutex> lock(guard_);
+		//std::lock_guard<std::mutex> lock(guard_);
 
-		input_deadline_.async_wait(reader_.wrap(std::bind(
-			&tcp_connection::check_deadline, this->shared_from_this(), &input_deadline_, &reader_)));
+		//input_deadline_.async_wait(reader_.wrap(std::bind(
+		//	&tcp_connection::check_deadline, this->shared_from_this(), &input_deadline_, &reader_)));
 	}
 
 	await_output();
 
 	{
-		std::lock_guard<std::mutex> lock(guard_);
+		//std::lock_guard<std::mutex> lock(guard_);
 
-		output_deadline_.async_wait(writer_.wrap(std::bind(
-			&tcp_connection::check_deadline, this->shared_from_this(), &output_deadline_, &writer_)));
+		//output_deadline_.async_wait(writer_.wrap(std::bind(
+		//	&tcp_connection::check_deadline, this->shared_from_this(), &output_deadline_, &writer_)));
 	}
-	connected = true;
 	on_connect_(this->shared_from_this());
 }
 template <typename socket_type>
@@ -147,22 +147,23 @@ void tcp_connection<socket_type>::stop(const asio::error_code& ec)
 	{
 		std::lock_guard<std::mutex> lock(guard_);
 
-		input_deadline_.cancel();
+//		input_deadline_.cancel();
 		non_empty_output_queue_.cancel();
-		output_deadline_.cancel();
+//		output_deadline_.cancel();
 	}
 
 	if(connected)
 	{
+        connected = false;
 		on_disconnect_(this->shared_from_this(), ec);
-		connected = false;
 	}
 }
 template <typename socket_type>
 bool tcp_connection<socket_type>::stopped() const
 {
-	std::lock_guard<std::mutex> lock(guard_);
-	return !socket_->lowest_layer().is_open();
+	//std::lock_guard<std::mutex> lock(guard_);
+	//return !socket_->lowest_layer().is_open();
+    return !connected;
 }
 
 template <typename socket_type>
@@ -181,6 +182,7 @@ void tcp_connection<socket_type>::send_msg(byte_buffer&& msg)
 
 	std::lock_guard<std::mutex> lock(guard_);
 	output_queue_.emplace_back(std::move(output_msg));
+
 	// Signal that the output queue contains messages. Modifying the expiry
 	// will wake the output actor, if it is waiting on the timer.
 	non_empty_output_queue_.expires_at(steady_timer::time_point::min());
@@ -189,15 +191,15 @@ template <typename socket_type>
 void tcp_connection<socket_type>::start_read()
 {
 	std::lock_guard<std::mutex> lock(guard_);
-	if(msg_builder_.msg_size > 0)
-	{
-		// Set a deadline for the read operation.
-		input_deadline_.expires_after(asio::chrono::seconds(30));
-	}
-	else
-	{
-		input_deadline_.expires_at(steady_timer::time_point::max());
-	}
+//	if(msg_builder_.msg_size > 0)
+//	{
+//		// Set a deadline for the read operation.
+//		input_deadline_.expires_after(asio::chrono::seconds(30));
+//	}
+//	else
+//	{
+//		input_deadline_.expires_at(steady_timer::time_point::max());
+//	}
 	// Start an asynchronous operation to read a certain number of bytes.
 	auto expected = msg_builder_.get_next_read();
 	asio::async_read(*socket_, asio::dynamic_buffer(msg_builder_.buffer), asio::transfer_exactly(expected),
@@ -268,7 +270,7 @@ void tcp_connection<socket_type>::start_write()
 	std::lock_guard<std::mutex> lock(guard_);
 
 	// Set a deadline for the write operation.
-	output_deadline_.expires_after(asio::chrono::seconds(30));
+	//output_deadline_.expires_after(asio::chrono::seconds(30));
 
 	// Start an asynchronous operation to send a message.
 	asio::async_write(*socket_, asio::buffer(output_queue_.front()),
@@ -302,7 +304,7 @@ void tcp_connection<socket_type>::check_deadline(steady_timer* deadline, io_cont
 
     bool expired = [&]()
     {
-        std::lock_guard<std::mutex> lock(guard_);
+        //std::lock_guard<std::mutex> lock(guard_);
         return deadline->expiry() <= steady_timer::clock_type::now();
     }();
 
@@ -317,7 +319,7 @@ void tcp_connection<socket_type>::check_deadline(steady_timer* deadline, io_cont
 	}
 	else
 	{
-        std::lock_guard<std::mutex> lock(guard_);
+        //std::lock_guard<std::mutex> lock(guard_);
 		// Put the actor back to sleep.
 		deadline->async_wait(strand->wrap(
 			std::bind(&tcp_connection::check_deadline, this->shared_from_this(), deadline, strand)));

@@ -1,10 +1,10 @@
 #include "tcp_local_tests.h"
 
-#include <netpp/service.h>
 #include <netpp/messenger.h>
+#include <netpp/service.h>
 
-#include <netpp/tcp_client.h>
-#include <netpp/tcp_server.h>
+#include <netpp/tcp_local_client.h>
+#include <netpp/tcp_local_server.h>
 
 #include <functional>
 #include <iostream>
@@ -12,87 +12,110 @@ namespace tcp_local
 {
 using namespace std::chrono_literals;
 
-net::connector_ptr create_tcp_server(uint16_t port)
+net::connector_ptr create_tcp_local_server(const std::string& file)
 {
-	auto net_context = net::context();
-	net::tcp::endpoint listen_endpoint(net::tcp::v6(), port);
-	return std::make_shared<net::tcp_server>(*net_context, listen_endpoint);
+    auto net_context = net::context();
+    asio::local::stream_protocol::endpoint listen_endpoint(file);
+    return std::make_shared<net::local_server>(*net_context, listen_endpoint);
 }
 
-net::connector_ptr create_tcp_client(const std::string& host, const std::string& port)
+net::connector_ptr create_tcp_local_client(const std::string& file)
 {
-	auto net_context = net::context();
-	net::tcp::resolver r(*net_context);
-	auto res = r.resolve(host, port);
-    auto endpoint = res.begin()->endpoint();
-	return std::make_shared<net::tcp_client>(*net_context, endpoint);
+    auto net_context = net::context();
+    asio::local::stream_protocol::endpoint endpoint(file);
+    return std::make_shared<net::local_client>(*net_context, endpoint);
 }
 
+static std::atomic<net::connection::id> connection_id{0};
+static std::atomic<net::connector::id> connector_id{0};
 
-void test(const std::string& ip, const std::string& port)
+void test(bool server, bool client)
 {
-	net::messenger net;
+    net::messenger net;
 
-	try
-	{
+    try
+    {
+        std::remove("/tmp/test");
 
-		auto client = create_tcp_client(ip, port);
-		net.add_connector(client,
-						  [&net](net::connection::id id) {
-							  std::cout << "client " << id << " connected" << std::endl;
+        if(client)
+        {
+            auto connector = create_tcp_local_client("/tmp/test");
+            net.add_connector(connector,
+                              [&net](net::connection::id id) {
+                                  std::cout << "client " << id << " connected" << std::endl;
 
-							  net.send_msg(id, "ping");
-						  },
-						  [](net::connection::id id, asio::error_code ec) {
-							  std::cout << "client " << id << " disconnected. Reason : " << ec.message()
-										<< std::endl;
-						  },
-						  [&net](net::connection::id id, auto&& msg) {
-							  std::cout << "client " << id << " on_msg: " << msg << std::endl;
-							  std::this_thread::sleep_for(16ms);
+                                  net.send_msg(id, "ping");
+                              },
+                              [](net::connection::id id, asio::error_code ec) {
+                                  std::cout << "client " << id << " disconnected. Reason : " << ec.message()
+                                            << std::endl;
+                              },
+                              [&net](net::connection::id id, auto&& msg) {
+                                  std::cout << "client " << id << " on_msg: " << msg << std::endl;
+                                  std::this_thread::sleep_for(16ms);
 
-							  if(msg == "ping")
-							  {
-								  net.send_msg(id, "pong");
-							  }
-							  else if(msg == "pong")
-							  {
-								  net.send_msg(id, "ping");
-							  }
-						  });
+                                  if(msg == "ping")
+                                  {
+                                      net.send_msg(id, "pong");
+                                  }
+                                  else if(msg == "pong")
+                                  {
+                                      net.send_msg(id, "ping");
+                                  }
+                              });
+        }
 
-		auto server = create_tcp_server(atoi(port.c_str()));
-		net.add_connector(server,
-						  [](net::connection::id id) { std::cout << "server connected " << id << std::endl; },
-						  [](net::connection::id id, asio::error_code ec) {
-							  std::cout << "server client " << id
-										<< " disconnected. reason : " << ec.message() << std::endl;
-						  },
-						  [server = server.get()](net::connection::id id, auto&& msg) {
-							  std::cout << "server on_msg: " << msg << std::endl;
-							  std::this_thread::sleep_for(16ms);
+        if(server)
+        {
+            auto connector = create_tcp_local_server("/tmp/test");
+            connector_id = net.add_connector(connector,
+                                             [](net::connection::id id) {
+                                                 std::cout << "server connected " << id << std::endl;
+                                                 connection_id = id;
+                                             },
+                                             [](net::connection::id id, asio::error_code ec) {
+                                                 std::cout << "server client " << id
+                                                           << " disconnected. reason : " << ec.message()
+                                                           << std::endl;
+                                             },
+                                             [&net](net::connection::id id, auto&& msg) {
+                                                 std::cout << "server on_msg: " << msg << std::endl;
+                                                 std::this_thread::sleep_for(16ms);
 
-							  if(msg == "ping")
-							  {
-								  server->send_msg(id, "pong");
-							  }
-							  else if(msg == "pong")
-							  {
-								  server->send_msg(id, "ping");
-							  }
+                                                 if(msg == "ping")
+                                                 {
+                                                     net.send_msg(id, "pong");
+                                                 }
+                                                 else if(msg == "pong")
+                                                 {
+                                                     net.send_msg(id, "ping");
+                                                 }
 
-							  server->send_msg(id, "sadasdasdasdasdaghdh");
-						  });
+                                                 net.send_msg(id, "sadasdasdasdasdaghdh");
+                                             });
+        }
 
-		while(true)
-		{
-			std::this_thread::sleep_for(16ms);
-		}
-	}
-	catch(std::exception& e)
-	{
-		std::cerr << "Exception: " << e.what() << "\n";
-	}
+        while(true)
+        {
+            std::this_thread::sleep_for(16ms);
+            net.send_msg(1, "from_main");
 
+            net.send_msg(connection_id, "from_main");
+            static int i = 0;
+            if(i++ % 10 == 0)
+            {
+                net.disconnect(connection_id);
+            }
+            if(i % 1000 == 0)
+            {
+                net.remove_connector(connector_id);
+                return;
+            }
+        }
+    }
+    catch(std::exception& e)
+    {
+        std::cerr << "Exception: " << e.what() << "\n";
+    }
 }
 } // namespace tcp

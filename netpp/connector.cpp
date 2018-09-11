@@ -6,13 +6,18 @@ namespace net
 connector::connector(io_context& io_context)
 	: io_context_(io_context)
 {
-	static id ids = 0;
+    static std::atomic<id> ids{0};
 	id_ = ++ids;
 }
 
 void connector::stop()
 {
-	channel_.stop(error::make_error_code(error::connection_aborted));
+    channel_.stop(error::make_error_code(error::connection_aborted));
+}
+
+void connector::stop(connection::id id)
+{
+    channel_.stop(id, error::make_error_code(error::connection_aborted));
 }
 
 void connector::send_msg(connection::id id, byte_buffer&& msg)
