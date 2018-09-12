@@ -16,7 +16,7 @@ class tcp_basic_client : public connector, public std::enable_shared_from_this<t
 {
 public:
     using weak_ptr = std::weak_ptr<tcp_basic_client<protocol>>;
-    using protocol_endpoint = asio::ip::basic_endpoint<protocol>;
+    using protocol_endpoint = typename protocol::endpoint;
     using protocol_acceptor = asio::basic_socket_acceptor<protocol>;
     using protocol_acceptor_ptr = std::unique_ptr<protocol_acceptor>;
 
@@ -33,6 +33,7 @@ public:
         std::cout << "trying to connect to " << endpoint_ << "..." << std::endl;
 
         auto weak_this = weak_ptr(this->shared_from_this());
+
         socket->lowest_layer().async_connect(endpoint_, [weak_this, socket, on_connection_established = std::move(f)](const error_code& ec) mutable {
             // The async_connect() function automatically opens the socket at the start
             // of the asynchronous operation.
@@ -115,7 +116,7 @@ class tcp_basic_server : public connector, public std::enable_shared_from_this<t
 {
 public:
     using weak_ptr = std::weak_ptr<tcp_basic_server<protocol>>;
-    using protocol_endpoint = asio::ip::basic_endpoint<protocol>;
+    using protocol_endpoint = typename protocol::endpoint;
     using protocol_acceptor = asio::basic_socket_acceptor<protocol>;
     using protocol_acceptor_ptr = std::unique_ptr<protocol_acceptor>;
 
