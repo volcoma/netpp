@@ -1,5 +1,5 @@
 #pragma once
-#include "connector.h"
+#include "../channel.h"
 #include <asio/ip/udp.hpp>
 
 namespace net

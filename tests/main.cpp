@@ -21,11 +21,11 @@ int main(int argc, char* argv[])
     {
         server = true;
     }
-    if(what == "client")
+    else if(what == "client")
     {
         client = true;
     }
-    if(what == "both")
+    else if(what == "both")
     {
         server = true;
         client = true;
@@ -36,8 +36,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 	tcp::test(server, client);
-	tcp_ssl::test(server, client);
-	tcp_local::test(server, client);
+	//tcp_ssl::test(server, client);
+	//tcp_local::test(server, client);
 
 	net::deinit_services();
 	return 0;

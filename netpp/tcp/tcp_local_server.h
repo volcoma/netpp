@@ -1,5 +1,5 @@
 #pragma once
-#include "connector.h"
+#include "tcp_connector.hpp"
 
 #include <asio/local/stream_protocol.hpp>
 
@@ -9,15 +9,12 @@ namespace net
 
 //----------------------------------------------------------------------
 using asio::local::stream_protocol;
-
-class local_server : public connector
+struct tcp_local_server : tcp_basic_server<stream_protocol>
 {
-public:
-	local_server(asio::io_context& io_context, const stream_protocol::endpoint& listen_endpoint);
+	using tcp_basic_server<stream_protocol>::tcp_basic_server;
 	void start() override;
-
-private:
-	stream_protocol::acceptor acceptor_;
 };
 } // namespace net
 #endif
+
+

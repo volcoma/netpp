@@ -28,7 +28,7 @@ inline std::vector<std::thread>& workers()
                 {
                     using namespace std::chrono_literals;
                     std::this_thread::sleep_for(100ms);
-                    context()->poll();
+                    context()->run();
                 }
             });
             result.emplace_back(std::move(th));

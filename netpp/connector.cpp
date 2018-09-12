@@ -39,7 +39,6 @@ void connector::on_disconnect(connection::id id, error_code ec)
 	{
 		on_disconnect_(id, ec);
 	}
-	start();
 }
 
 void connector::on_connect(connection::id id)
@@ -48,26 +47,6 @@ void connector::on_connect(connection::id id)
 	{
 		on_connect_(id);
     }
-}
-
-void connector::setup_connection(connection& session)
-{
-    session.on_connect_ = [this](connection_ptr conn)
-    {
-        channel_.join(conn);
-        on_connect(conn->get_id());
-    };
-
-    session.on_disconnect_ = [this](connection_ptr conn, const error_code& ec)
-    {
-        channel_.leave(conn);
-        on_disconnect(conn->get_id(), ec);
-    };
-
-    session.on_msg_ = [this](connection_ptr conn, const byte_buffer& msg)
-    {
-        on_msg(conn->get_id(), msg);
-    };
 }
 
 const connector::id& connector::get_id() const

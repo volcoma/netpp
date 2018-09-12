@@ -20,7 +20,7 @@ namespace net
 
 //----------------------------------------------------------------------
 
-struct connector : public std::enable_shared_from_this<connector>
+struct connector
 {
 	using id = uint64_t;
 	using on_msg_t = std::function<void(connection::id, const byte_buffer&)>;
@@ -38,8 +38,6 @@ struct connector : public std::enable_shared_from_this<connector>
 	void on_msg(connection::id id, const byte_buffer& msg);
 	void on_disconnect(connection::id id, asio::error_code ec);
 	void on_connect(connection::id id);
-
-    void setup_connection(connection& session);
 
 	const id& get_id() const;
 

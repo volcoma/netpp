@@ -3,8 +3,8 @@
 #include <netpp/messenger.h>
 #include <netpp/service.h>
 
-#include <netpp/tcp_local_client.h>
-#include <netpp/tcp_local_server.h>
+#include <netpp/tcp/tcp_local_client.h>
+#include <netpp/tcp/tcp_local_server.h>
 
 #include <functional>
 #include <iostream>
@@ -14,16 +14,24 @@ using namespace std::chrono_literals;
 
 net::connector_ptr create_tcp_local_server(const std::string& file)
 {
+#ifdef ASIO_HAS_LOCAL_SOCKETS
     auto net_context = net::context();
-    asio::local::stream_protocol::endpoint listen_endpoint(file);
-    return std::make_shared<net::local_server>(*net_context, listen_endpoint);
+    net::tcp_local_server::protocol_endpoint endpoint(file);
+    return std::make_shared<net::tcp_local_server>(*net_context, endpoint);
+#else
+    return nullptr;
+#endif
 }
 
 net::connector_ptr create_tcp_local_client(const std::string& file)
 {
+#ifdef ASIO_HAS_LOCAL_SOCKETS
     auto net_context = net::context();
-    asio::local::stream_protocol::endpoint endpoint(file);
-    return std::make_shared<net::local_client>(*net_context, endpoint);
+    net::tcp_local_server::protocol_endpoint endpoint(file);
+    return std::make_shared<net::tcp_local_client>(*net_context, endpoint);
+#else
+    return nullptr;
+#endif
 }
 
 static std::atomic<net::connection::id> connection_id{0};
