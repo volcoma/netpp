@@ -6,8 +6,8 @@ namespace net
 {
 
 udp_connection::udp_connection(asio::io_context& io_context, udp::endpoint endpoint)
-    : socket_(io_context)
-    , endpoint_(std::move(endpoint))
+	: socket_(io_context)
+	, endpoint_(std::move(endpoint))
 {
 	socket_.set_option(udp::socket::broadcast(true));
 }

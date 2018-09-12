@@ -1,6 +1,6 @@
 #pragma once
-#include "../channel.h"
 #include <asio/ip/udp.hpp>
+#include <netpp/connection.h>
 
 namespace net
 {
@@ -16,6 +16,6 @@ private:
 	void send_msg(byte_buffer&& msg) override;
 
 	udp::socket socket_;
-    udp::endpoint endpoint_;
+	udp::endpoint endpoint_;
 };
 } // namespace net

@@ -2,5 +2,5 @@
 #include <string>
 namespace tcp
 {
-    void test(bool server, bool client);
+void test(bool server, bool client);
 }

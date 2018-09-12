@@ -5,7 +5,6 @@
 
 namespace net
 {
-
 using asio::ip::tcp;
 
 class tcp_ssl_client : public tcp_client
@@ -17,7 +16,6 @@ public:
 	void start() override;
 
 private:
-
 	asio::ssl::context context_;
 };
 } // namespace net

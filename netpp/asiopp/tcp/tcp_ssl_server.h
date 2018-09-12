@@ -5,7 +5,6 @@
 namespace net
 {
 
-//----------------------------------------------------------------------
 class tcp_ssl_server : public tcp_server
 {
 public:
@@ -18,4 +17,5 @@ private:
 	std::string get_password() const;
 	asio::ssl::context context_;
 };
+
 } // namespace net

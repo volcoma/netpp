@@ -10,7 +10,7 @@ using asio::local::stream_protocol;
 
 struct tcp_local_client : tcp_basic_client<stream_protocol>
 {
-    using tcp_basic_client<stream_protocol>::tcp_basic_client;
+	using tcp_basic_client<stream_protocol>::tcp_basic_client;
 	void start() override;
 };
 } // namespace net
