@@ -17,46 +17,53 @@ using namespace asio;
 
 namespace
 {
-io_context& get_io_context()
+auto& get_io_context()
 {
 	static io_context context;
-	static io_context::work work(context);
 	return context;
 }
 
-std::vector<std::thread>& workers()
+auto& get_work()
 {
-	static std::vector<std::thread> threads = []() {
-		std::vector<std::thread> result;
-		for(size_t i = 0; i < std::thread::hardware_concurrency(); ++i)
-		{
-			std::thread th([]() { get_io_context().run(); });
-			result.emplace_back(std::move(th));
-		}
+	static auto work =
+		asio::make_work_guard(get_io_context());
+	return work;
+}
 
-		return result;
-	}();
+auto& get_service_threads()
+{
+	static std::vector<std::thread> threads;
 	return threads;
 }
+
+void create_service_threads(size_t workers = 1)
+{
+	auto& threads = get_service_threads();
+	for(size_t i = 0; i < workers; ++i)
+	{
+		threads.emplace_back([]() { get_io_context().run(); });
+	}
+}
 }
 
-void init_services()
+void init_services(size_t workers)
 {
-	get_io_context();
-	workers();
+	get_work();
+	create_service_threads(workers);
 }
 
 void deinit_services()
 {
+	get_work().reset();
 	get_io_context().stop();
 
-	auto& threads = workers();
+	auto& threads = get_service_threads();
 
-	for(auto& worker : threads)
+	for(auto& thread : threads)
 	{
-		if(worker.joinable())
+		if(thread.joinable())
 		{
-			worker.join();
+			thread.join();
 		}
 	}
 	threads.clear();

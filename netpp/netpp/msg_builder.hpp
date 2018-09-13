@@ -10,12 +10,12 @@ template <typename T>
 class msg_builder
 {
 public:
-	size_t get_header_size() const
+	static size_t get_header_size()
 	{
 		return sizeof(T);
 	}
 
-	byte_buffer write_chunk(byte_buffer&& msg)
+	static byte_buffer write_header(const byte_buffer& msg)
 	{
 		auto msg_size = static_cast<T>(msg.size());
 		size_t header_size = get_header_size();

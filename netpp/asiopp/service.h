@@ -7,7 +7,7 @@
 namespace net
 {
 
-void init_services();
+void init_services(size_t workers);
 void deinit_services();
 
 net::connector_ptr create_tcp_server(uint16_t port);

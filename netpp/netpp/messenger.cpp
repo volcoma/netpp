@@ -1,5 +1,5 @@
 #include "messenger.h"
-
+#include <iostream>
 namespace net
 {
 
@@ -127,6 +127,12 @@ void messenger::remove_connector(connector::id_t id)
 	lock.unlock();
 
 	connector->stop(id, {});
+}
+
+size_t messenger::get_connections_count() const
+{
+	std::unique_lock<std::mutex> lock(guard_);
+	return connections_.size();
 }
 
 void messenger::on_connect(connector::id_t connector_id, connection::id_t id)

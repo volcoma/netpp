@@ -1,4 +1,4 @@
-set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/asio")
+set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Find ASIO (the standalone version, not Boost) If asio isn't installed in
 # a standard directory, add the correct directory to CMAKE_PREFIX_PATH (see

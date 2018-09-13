@@ -8,15 +8,19 @@
 
 int main(int argc, char* argv[])
 {
-	net::init_services();
+	net::init_services(std::thread::hardware_concurrency());
 
-	if(argc != 2)
+	if(argc < 2)
 	{
 		std::cerr << "Usage: <server/client/both>" << std::endl;
-		;
 		return 1;
 	}
 	std::string what = argv[1];
+    int count = 1;
+    if(argc == 3)
+    {
+        count = atoi(argv[2]);
+    }
 	bool server = false;
 	bool client = false;
 	if(what == "server")
@@ -37,9 +41,9 @@ int main(int argc, char* argv[])
 		std::cerr << "Usage: <server/client/both>" << std::endl;
 		return 1;
 	}
-	tcp::test(server, client);
-	tcp_ssl::test(server, client);
-	tcp_local::test(server, client);
+	tcp::test(server, client, count);
+	tcp_ssl::test(server, client, count);
+	tcp_local::test(server, client, count);
 
 	net::deinit_services();
 	return 0;
