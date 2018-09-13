@@ -18,7 +18,14 @@ net::connector_ptr create_tcp_ssl_server(uint16_t port, const std::string& cert_
 
 net::connector_ptr create_tcp_ssl_client(const std::string& host, const std::string& port,
 										 const std::string& cert_file);
+
 net::connector_ptr create_tcp_local_server(const std::string& file);
 net::connector_ptr create_tcp_local_client(const std::string& file);
+
+net::connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::string& cert_chain_file,
+											   const std::string& private_key_file,
+											   const std::string& dh_file);
+
+net::connector_ptr create_tcp_ssl_local_client(const std::string& file, const std::string& cert_file);
 
 } // namespace net

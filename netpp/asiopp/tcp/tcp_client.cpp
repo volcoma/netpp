@@ -5,8 +5,8 @@ namespace net
 
 void tcp_client::start()
 {
-	using socket_type = tcp::socket;
-	auto socket = std::make_shared<tcp::socket>(io_context);
+	using socket_type = protocol::socket;
+	auto socket = std::make_shared<socket_type>(io_context);
 
 	auto weak_this = weak_ptr(shared_from_this());
 	auto on_connection_established = [weak_this, socket]() {

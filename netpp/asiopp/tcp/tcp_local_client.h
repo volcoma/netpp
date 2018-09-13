@@ -1,9 +1,9 @@
 #pragma once
 
 #include "tcp_connector.hpp"
-#include <asio/local/stream_protocol.hpp>
 
 #ifdef ASIO_HAS_LOCAL_SOCKETS
+#include <asio/local/stream_protocol.hpp>
 namespace net
 {
 using asio::local::stream_protocol;

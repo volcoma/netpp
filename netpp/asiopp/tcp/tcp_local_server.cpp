@@ -6,7 +6,7 @@ namespace net
 
 void tcp_local_server::start()
 {
-	using socket_type = stream_protocol::socket;
+	using socket_type = protocol::socket;
 	auto socket = std::make_shared<socket_type>(io_context);
 
 	auto weak_this = weak_ptr(shared_from_this());

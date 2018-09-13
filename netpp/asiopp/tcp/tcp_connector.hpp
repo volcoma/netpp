@@ -12,14 +12,15 @@
 namespace net
 {
 
-template <typename protocol>
+template <typename protocol_type>
 class tcp_basic_client : public asio_connector,
-						 public std::enable_shared_from_this<tcp_basic_client<protocol>>
+						 public std::enable_shared_from_this<tcp_basic_client<protocol_type>>
 {
 public:
-	using weak_ptr = std::weak_ptr<tcp_basic_client<protocol>>;
-	using protocol_endpoint = typename protocol::endpoint;
-	using protocol_acceptor = asio::basic_socket_acceptor<protocol>;
+    using protocol = protocol_type;
+	using weak_ptr = std::weak_ptr<tcp_basic_client<protocol_type>>;
+	using protocol_endpoint = typename protocol_type::endpoint;
+	using protocol_acceptor = asio::basic_socket_acceptor<protocol_type>;
 	using protocol_acceptor_ptr = std::unique_ptr<protocol_acceptor>;
 
 	tcp_basic_client(asio::io_context& io_context, const protocol_endpoint& endpoint)
@@ -113,14 +114,15 @@ protected:
 	protocol_endpoint endpoint_;
 };
 
-template <typename protocol>
+template <typename protocol_type>
 class tcp_basic_server : public asio_connector,
-						 public std::enable_shared_from_this<tcp_basic_server<protocol>>
+						 public std::enable_shared_from_this<tcp_basic_server<protocol_type>>
 {
 public:
-	using weak_ptr = std::weak_ptr<tcp_basic_server<protocol>>;
-	using protocol_endpoint = typename protocol::endpoint;
-	using protocol_acceptor = asio::basic_socket_acceptor<protocol>;
+    using protocol = protocol_type;
+	using weak_ptr = std::weak_ptr<tcp_basic_server<protocol_type>>;
+	using protocol_endpoint = typename protocol_type::endpoint;
+	using protocol_acceptor = asio::basic_socket_acceptor<protocol_type>;
 	using protocol_acceptor_ptr = std::unique_ptr<protocol_acceptor>;
 
 	tcp_basic_server(asio::io_context& io_context, const protocol_endpoint& endpoint)

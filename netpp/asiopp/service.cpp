@@ -25,8 +25,7 @@ auto& get_io_context()
 
 auto& get_work()
 {
-	static auto work =
-		asio::make_work_guard(get_io_context());
+	static auto work = asio::make_work_guard(get_io_context());
 	return work;
 }
 
@@ -70,46 +69,56 @@ void deinit_services()
 }
 connector_ptr create_tcp_server(uint16_t port)
 {
+	using connector_type = net::tcp_server;
+
 	auto& net_context = get_io_context();
-	net::tcp::endpoint listen_endpoint(tcp::v6(), port);
-	return std::make_shared<net::tcp_server>(net_context, listen_endpoint);
+	connector_type::protocol_endpoint endpoint(tcp::v6(), port);
+	return std::make_shared<connector_type>(net_context, endpoint);
 }
 
 net::connector_ptr create_tcp_client(const std::string& host, const std::string& port)
 {
+	using connector_type = net::tcp_server;
+
 	auto& net_context = get_io_context();
-	tcp::resolver r(net_context);
+	connector_type::protocol::resolver r(net_context);
 	auto res = r.resolve(host, port);
 	auto endpoint = res.begin()->endpoint();
-	return std::make_shared<tcp_client>(net_context, endpoint);
+	return std::make_shared<connector_type>(net_context, endpoint);
 }
 
 connector_ptr create_tcp_ssl_server(uint16_t port, const std::string& cert_chain_file,
 									const std::string& private_key_file, const std::string& dh_file)
 {
+	using connector_type = net::tcp_ssl_server;
+
 	auto& net_context = get_io_context();
-	tcp::endpoint listen_endpoint(tcp::v6(), port);
-	return std::make_shared<tcp_ssl_server>(net_context, listen_endpoint, cert_chain_file, private_key_file,
+	connector_type::protocol_endpoint endpoint(tcp::v6(), port);
+	return std::make_shared<connector_type>(net_context, endpoint, cert_chain_file, private_key_file,
 											dh_file);
 }
 
 connector_ptr create_tcp_ssl_client(const std::string& host, const std::string& port,
 									const std::string& cert_file)
 {
+	using connector_type = net::tcp_ssl_client;
+
 	auto& net_context = get_io_context();
-	tcp::resolver r(net_context);
+	connector_type::protocol::resolver r(net_context);
 	auto res = r.resolve(host, port);
 	auto endpoint = res.begin()->endpoint();
-	return std::make_shared<tcp_ssl_client>(net_context, endpoint, cert_file);
+	return std::make_shared<connector_type>(net_context, endpoint, cert_file);
 }
 
 net::connector_ptr create_tcp_local_server(const std::string& file)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
+	using connector_type = net::tcp_local_server;
 	auto& net_context = get_io_context();
-	tcp_local_server::protocol_endpoint endpoint(file);
-	return std::make_shared<tcp_local_server>(net_context, endpoint);
+	connector_type::protocol_endpoint endpoint(file);
+	return std::make_shared<connector_type>(net_context, endpoint);
 #else
+	(void)file;
 	return nullptr;
 #endif
 }
@@ -117,10 +126,44 @@ net::connector_ptr create_tcp_local_server(const std::string& file)
 net::connector_ptr create_tcp_local_client(const std::string& file)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
+	using connector_type = net::tcp_local_client;
 	auto& net_context = get_io_context();
-	tcp_local_server::protocol_endpoint endpoint(file);
-	return std::make_shared<tcp_local_client>(net_context, endpoint);
+	connector_type::protocol_endpoint endpoint(file);
+	return std::make_shared<connector_type>(net_context, endpoint);
 #else
+	(void)file;
+	return nullptr;
+#endif
+}
+
+connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::string& cert_chain_file,
+										  const std::string& private_key_file, const std::string& dh_file)
+{
+#ifdef ASIO_HAS_LOCAL_SOCKETS
+	using connector_type = net::tcp_ssl_local_server;
+	auto& net_context = get_io_context();
+	connector_type::protocol_endpoint endpoint(file);
+	return std::make_shared<connector_type>(net_context, endpoint, cert_chain_file, private_key_file,
+											dh_file);
+#else
+	(void)file;
+	(void)cert_chain_file;
+	(void)private_key_file;
+	(void)dh_file;
+	return nullptr;
+#endif
+}
+
+connector_ptr create_tcp_ssl_local_client(const std::string& file, const std::string& cert_file)
+{
+#ifdef ASIO_HAS_LOCAL_SOCKETS
+	using connector_type = net::tcp_ssl_local_client;
+	auto& net_context = get_io_context();
+	connector_type::protocol_endpoint endpoint(file);
+	return std::make_shared<connector_type>(net_context, endpoint, cert_file);
+#else
+	(void)file;
+	(void)cert_file;
 	return nullptr;
 #endif
 }

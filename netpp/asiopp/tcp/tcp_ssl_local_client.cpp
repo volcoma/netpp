@@ -1,6 +1,8 @@
-#include "tcp_ssl_client.h"
+#include "tcp_ssl_local_client.h"
+
 #include <iostream>
 
+#ifdef ASIO_HAS_LOCAL_SOCKETS
 namespace net
 {
 namespace
@@ -24,15 +26,15 @@ bool verify_certificate(bool preverified, asio::ssl::verify_context& ctx)
 }
 }
 
-tcp_ssl_client::tcp_ssl_client(asio::io_context& io_context, const protocol_endpoint& endpoint,
+tcp_ssl_local_client::tcp_ssl_local_client(asio::io_context& io_context, const protocol_endpoint& endpoint,
 							   const std::string& cert_file)
-	: tcp_client(io_context, endpoint)
+	: tcp_local_client(io_context, endpoint)
 	, context_(asio::ssl::context::sslv23)
 {
 	context_.load_verify_file(cert_file);
 }
 
-void tcp_ssl_client::start()
+void tcp_ssl_local_client::start()
 {
 	using socket_type = asio::ssl::stream<protocol::socket>;
 	auto socket = std::make_shared<socket_type>(io_context, context_);
@@ -78,3 +80,4 @@ void tcp_ssl_client::start()
 }
 
 } // namespace net
+#endif
