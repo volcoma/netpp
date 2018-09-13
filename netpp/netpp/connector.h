@@ -1,13 +1,6 @@
 #pragma once
 #include "connection.h"
 
-//#include <asio/buffer.hpp>
-//#include <asio/io_context.hpp>
-//#include <asio/read.hpp>
-//#include <asio/read_until.hpp>
-//#include <asio/steady_timer.hpp>
-//#include <asio/write.hpp>
-
 #include <algorithm>
 #include <cstdlib>
 #include <deque>
@@ -18,19 +11,6 @@
 namespace net
 {
 
-class connections
-{
-public:
-	void join(const connection_ptr& session);
-	void leave(const connection_ptr& session);
-	void stop(const error_code& ec);
-	void stop(connection::id_t id, const error_code& ec);
-	void send_msg(connection::id_t id, byte_buffer&& msg);
-
-private:
-	std::mutex guard_;
-	std::map<connection::id_t, connection_ptr> connections_;
-};
 //----------------------------------------------------------------------
 
 struct connector
@@ -48,11 +28,16 @@ struct connector
 	void stop(connection::id_t id, const std::error_code& ec);
 	void send_msg(connection::id_t id, byte_buffer&& msg);
 
+    void add(const connection_ptr& session);
+	void remove(const connection_ptr& session);
+
 	on_connect_t on_connect;
 	on_disconnect_t on_disconnect;
 	on_msg_t on_msg;
 
-	connections channel;
+    std::mutex guard_;
+	std::map<connection::id_t, connection_ptr> connections_;
+
 	const id_t id;
 };
 

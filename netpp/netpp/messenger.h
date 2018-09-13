@@ -24,6 +24,7 @@ public:
 	void remove_connector(connector::id_t id);
 
     size_t get_connections_count() const;
+    void stop();
 private:
 	messenger() = default;
 	void on_connect(connector::id_t connector_id, connection::id_t id);
@@ -38,8 +39,12 @@ private:
 		on_disconnect_t on_disconnect;
 	};
 	mutable std::mutex guard_;
-	std::map<connector::id_t, connector_info> connectors_;
+	std::map<connector::id_t, std::shared_ptr<connector_info>> connectors_;
 	std::map<connection::id_t, connector::id_t> connections_;
 };
+
+
+void deinit_messengers();
+net::messenger::ptr get_network();
 
 } // namespace net
