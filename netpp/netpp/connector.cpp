@@ -56,10 +56,10 @@ void connector::add(const connection_ptr& session)
 	connections_.emplace(session->id, session);
 }
 
-void connector::remove(const connection_ptr& session)
+void connector::remove(connection::id_t id)
 {
 	std::lock_guard<std::mutex> lock(guard_);
-	connections_.erase(session->id);
+	connections_.erase(id);
 }
 
 } // namespace net

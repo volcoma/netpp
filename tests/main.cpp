@@ -8,14 +8,8 @@
 
 using namespace std::chrono_literals;
 
-static std::atomic<net::connection::id_t> connection_id{0};
-static std::atomic<net::connector::id_t> connector_id{0};
-
 void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients)
 {
-
-    connection_id = 0;
-    connector_id = 0;
 
     for(auto& client : clients)
     {
@@ -28,7 +22,7 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
                                {
                                    return;
                                }
-                               net->send_msg(id, "echo");
+                               net->send_msg(id, "echoasss");
                            },
                            [](net::connection::id_t id, const net::error_code& ec) {
                                sout() << "client " << id << " disconnected. Reason : " << ec.message()
@@ -36,7 +30,7 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
                            },
                            [](net::connection::id_t id, const auto& msg) {
                                sout() << "client " << id << " on_msg: " << msg << "\n";
-                               std::this_thread::sleep_for(16ms);
+                               //std::this_thread::sleep_for(16ms);
                                auto net = net::get_network();
                                if(!net)
                                {
@@ -50,10 +44,9 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
     clients.clear();
 
     auto net = net::get_network();
-    connector_id = net->add_connector(server,
+    net->add_connector(server,
                                       [](net::connection::id_t id) {
                                           sout() << "server connected " << id << "\n";
-                                          connection_id = id;
                                       },
                                       [](net::connection::id_t id, net::error_code ec) {
                                           sout() << "server client " << id
@@ -62,7 +55,7 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
                                       },
                                       [](net::connection::id_t id, auto&& msg) {
                                           sout() << "server on_msg: " << msg << "\n";
-                                          std::this_thread::sleep_for(16ms);
+                                          //std::this_thread::sleep_for(16ms);
                                           auto net = net::get_network();
                                           if(!net)
                                           {
@@ -74,25 +67,16 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
                                       });
     server.reset();
 
-    while(true)
+    auto end = std::chrono::steady_clock::now() + 20s;
+    while(std::chrono::steady_clock::now() < end)
     {
         std::this_thread::sleep_for(16ms);
 
         static int i = 0;
-        if(i++ % 4 == 0)
-        {
-            // net->send_msg(1, "from_main");
-            // net->send_msg(connection_id, "from_main");
-        }
 
-        if(i % 100 == 0)
+        if(i++ % 50 == 0)
         {
-            net->disconnect(connection_id);
-        }
-        if(i % 1000 == 0)
-        {
-            net->remove_connector(connector_id);
-            break;
+            //net->send_msg(1, "from_main");
         }
     }
     net->stop();
@@ -145,26 +129,26 @@ int main(int argc, char* argv[])
 
     try
     {
-        {
-            std::vector<net::connector_ptr> clients;
-            if(is_client)
-            {
-                for(int i = 0; i < count; ++i)
-                {
-                    clients.emplace_back();
-                    auto& client = clients.back();
-                    client = net::create_tcp_client(host, port);
-                }
-            }
+//        {
+//            std::vector<net::connector_ptr> clients;
+//            if(is_client)
+//            {
+//                for(int i = 0; i < count; ++i)
+//                {
+//                    clients.emplace_back();
+//                    auto& client = clients.back();
+//                    client = net::create_tcp_client(host, port);
+//                }
+//            }
 
-            net::connector_ptr server;
-            if(is_server)
-            {
-                server = net::create_tcp_server(port);
-            }
+//            net::connector_ptr server;
+//            if(is_server)
+//            {
+//                server = net::create_tcp_server(port);
+//            }
 
-            test(std::move(server), std::move(clients));
-        }
+//            test(std::move(server), std::move(clients));
+//        }
 
 //        {
 //            std::vector<net::connector_ptr> clients;
@@ -187,27 +171,6 @@ int main(int argc, char* argv[])
 //            test(std::move(server), std::move(clients));
 //        }
 
-        {
-            std::vector<net::connector_ptr> clients;
-            if(is_client)
-            {
-                for(int i = 0; i < count; ++i)
-                {
-                    clients.emplace_back();
-                    auto& client = clients.back();
-                    client = net::create_tcp_ssl_client(host, port, cert_file);
-                }
-            }
-
-            net::connector_ptr server;
-            if(is_server)
-            {
-                server = net::create_tcp_ssl_server(port, cert_chain_file, private_key_file, dh_file);
-            }
-
-            test(std::move(server), std::move(clients));
-        }
-
 //        {
 //            std::vector<net::connector_ptr> clients;
 //            if(is_client)
@@ -216,18 +179,39 @@ int main(int argc, char* argv[])
 //                {
 //                    clients.emplace_back();
 //                    auto& client = clients.back();
-//                    client = net::create_tcp_ssl_local_client(domain, cert_file);
+//                    client = net::create_tcp_ssl_client(host, port, cert_file);
 //                }
 //            }
 
 //            net::connector_ptr server;
 //            if(is_server)
 //            {
-//                server = net::create_tcp_ssl_local_server(domain, cert_chain_file, private_key_file, dh_file);
+//                server = net::create_tcp_ssl_server(port, cert_chain_file, private_key_file, dh_file);
 //            }
 
 //            test(std::move(server), std::move(clients));
 //        }
+
+        {
+            std::vector<net::connector_ptr> clients;
+            if(is_client)
+            {
+                for(int i = 0; i < count; ++i)
+                {
+                    clients.emplace_back();
+                    auto& client = clients.back();
+                    client = net::create_tcp_ssl_local_client(domain, cert_file);
+                }
+            }
+
+            net::connector_ptr server;
+            if(is_server)
+            {
+                server = net::create_tcp_ssl_local_server(domain, cert_chain_file, private_key_file, dh_file);
+            }
+
+            test(std::move(server), std::move(clients));
+        }
     }
     catch(std::exception& e)
     {

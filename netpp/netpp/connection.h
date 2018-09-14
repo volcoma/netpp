@@ -1,5 +1,7 @@
 #pragma once
 
+#include "msg_builder.hpp"
+
 #include <functional>
 #include <map>
 #include <memory>
@@ -10,18 +12,15 @@
 
 namespace net
 {
-using byte_buffer = std::string; // std::vector<uint8_t>;
 using error_code = std::error_code;
 //----------------------------------------------------------------------
-struct connection;
-using connection_ptr = std::shared_ptr<connection>;
 
 struct connection
 {
-	using on_connect_t = std::function<void(connection_ptr)>;
-	using on_disconnect_t = std::function<void(connection_ptr, const error_code&)>;
-	using on_msg_t = std::function<void(connection_ptr, const byte_buffer&)>;
-	using id_t = uint64_t;
+    using id_t = uint64_t;
+	using on_connect_t = std::function<void(connection::id_t)>;
+	using on_disconnect_t = std::function<void(connection::id_t, const error_code&)>;
+	using on_msg_t = std::function<void(connection::id_t, const byte_buffer&)>;
 
 	connection();
 	virtual ~connection() = default;
@@ -32,7 +31,10 @@ struct connection
 	on_connect_t on_connect;
 	on_disconnect_t on_disconnect;
 	on_msg_t on_msg;
+    msg_builder_ptr msg_builder_;
 	const id_t id;
+
 };
+using connection_ptr = std::shared_ptr<connection>;
 
 } // namespace net

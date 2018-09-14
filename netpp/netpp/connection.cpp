@@ -10,7 +10,8 @@ static connection::id_t get_next_id()
 }
 
 connection::connection()
-	: id(get_next_id())
+    : msg_builder_(std::make_unique<standard_builder>())
+	, id(get_next_id())
 {
 }
 

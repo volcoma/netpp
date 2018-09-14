@@ -29,7 +29,7 @@ struct connector
 	void send_msg(connection::id_t id, byte_buffer&& msg);
 
 	void add(const connection_ptr& session);
-	void remove(const connection_ptr& session);
+	void remove(connection::id_t id);
 
 	on_connect_t on_connect;
 	on_disconnect_t on_disconnect;

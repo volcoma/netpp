@@ -3,7 +3,7 @@
 #include "tcp/client.h"
 #include "tcp/server.h"
 
-#include <asio/io_service.hpp>
+#include <asio/io_context.hpp>
 #include <iostream>
 namespace net
 {
@@ -13,13 +13,13 @@ namespace
 {
 auto& get_io_context()
 {
-	static asio::io_service context;
+	static auto context = std::make_unique<asio::io_context>();
 	return context;
 }
 
 auto& get_work()
 {
-	static auto work = asio::make_work_guard(get_io_context());
+	static auto work = asio::make_work_guard(*get_io_context());
 	return work;
 }
 
@@ -37,7 +37,7 @@ void create_service_threads(size_t workers = 1)
 		threads.emplace_back([]() {
 			try
 			{
-				get_io_context().run();
+				get_io_context()->run();
 			}
 			catch(std::exception& e)
 			{
@@ -57,7 +57,7 @@ void init_services(size_t workers)
 void deinit_services()
 {
 	get_work().reset();
-	get_io_context().stop();
+    get_io_context()->stop();
 
 	auto& threads = get_service_threads();
 
@@ -69,12 +69,13 @@ void deinit_services()
 		}
 	}
 	threads.clear();
+    get_io_context().reset();
 }
 connector_ptr create_tcp_server(uint16_t port)
 {
 	using connector_type = net::tcp::server;
 
-	auto& net_context = get_io_context();
+	auto& net_context = *get_io_context();
 	connector_type::protocol_endpoint endpoint(asio::ip::tcp::v6(), port);
 	return std::make_shared<connector_type>(net_context, endpoint);
 }
@@ -83,7 +84,7 @@ net::connector_ptr create_tcp_client(const std::string& host, uint16_t port)
 {
 	using connector_type = net::tcp::client;
 
-	auto& net_context = get_io_context();
+	auto& net_context = *get_io_context();
 	connector_type::protocol::resolver r(net_context);
 	auto res = r.resolve(host, std::to_string(port));
 	auto endpoint = res.begin()->endpoint();
@@ -95,7 +96,7 @@ connector_ptr create_tcp_ssl_server(uint16_t port, const std::string& cert_chain
 {
 	using connector_type = net::tcp::ssl_server;
 
-	auto& net_context = get_io_context();
+	auto& net_context = *get_io_context();
 	connector_type::protocol_endpoint endpoint(asio::ip::tcp::v6(), port);
 	return std::make_shared<connector_type>(net_context, endpoint, cert_chain_file, private_key_file,
 											dh_file);
@@ -105,7 +106,7 @@ connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, cons
 {
 	using connector_type = net::tcp::ssl_client;
 
-	auto& net_context = get_io_context();
+	auto& net_context = *get_io_context();
 	connector_type::protocol::resolver r(net_context);
 	auto res = r.resolve(host, std::to_string(port));
 	auto endpoint = res.begin()->endpoint();
@@ -116,7 +117,7 @@ net::connector_ptr create_tcp_local_server(const std::string& file)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
 	using connector_type = net::tcp::local_server;
-	auto& net_context = get_io_context();
+	auto& net_context = *get_io_context();
 	connector_type::protocol_endpoint endpoint(file);
 	return std::make_shared<connector_type>(net_context, endpoint);
 #else
@@ -129,7 +130,7 @@ net::connector_ptr create_tcp_local_client(const std::string& file)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
 	using connector_type = net::tcp::local_client;
-	auto& net_context = get_io_context();
+	auto& net_context = *get_io_context();
 	connector_type::protocol_endpoint endpoint(file);
 	return std::make_shared<connector_type>(net_context, endpoint);
 #else
@@ -143,7 +144,7 @@ connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::st
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
 	using connector_type = net::tcp::ssl_local_server;
-	auto& net_context = get_io_context();
+	auto& net_context = *get_io_context();
 	connector_type::protocol_endpoint endpoint(file);
 	return std::make_shared<connector_type>(net_context, endpoint, cert_chain_file, private_key_file,
 											dh_file);
@@ -160,7 +161,7 @@ connector_ptr create_tcp_ssl_local_client(const std::string& file, const std::st
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
 	using connector_type = net::tcp::ssl_local_client;
-	auto& net_context = get_io_context();
+	auto& net_context = *get_io_context();
 	connector_type::protocol_endpoint endpoint(file);
 	return std::make_shared<connector_type>(net_context, endpoint, cert_file);
 #else
