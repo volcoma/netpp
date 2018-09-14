@@ -4,6 +4,7 @@
 
 #include <asiopp/service.h>
 #include <netpp/messenger.h>
+#include <asiopp/utils.hpp>
 
 using namespace std::chrono_literals;
 
@@ -19,68 +20,59 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
     for(auto& client : clients)
     {
         auto net = net::get_network();
-        net->add_connector(std::move(client),
+        net->add_connector(client,
                            [](net::connection::id_t id) {
-                               std::cout << "client " << id << " connected" << std::endl;
+                               sout() << "client " << id << " connected" << "\n";
                                auto net = net::get_network();
                                if(!net)
                                {
                                    return;
                                }
-                               net->send_msg(id, "ping");
+                               net->send_msg(id, "echo");
                            },
                            [](net::connection::id_t id, const net::error_code& ec) {
-                               std::cout << "client " << id << " disconnected. Reason : " << ec.message()
-                                         << std::endl;
+                               sout() << "client " << id << " disconnected. Reason : " << ec.message()
+                                         << "\n";
                            },
-                           [](net::connection::id_t id, auto&& msg) {
-                               std::cout << "client " << id << " on_msg: " << msg << std::endl;
+                           [](net::connection::id_t id, const auto& msg) {
+                               sout() << "client " << id << " on_msg: " << msg << "\n";
                                std::this_thread::sleep_for(16ms);
                                auto net = net::get_network();
                                if(!net)
                                {
                                    return;
                                }
-                               if(msg == "ping")
-                               {
-                                   net->send_msg(id, "pong");
-                               }
-                               else if(msg == "pong")
-                               {
-                                   net->send_msg(id, "ping");
-                               }
+
+                               net->send_msg(id, net::byte_buffer(msg));
+
                            });
     }
     clients.clear();
 
     auto net = net::get_network();
-    connector_id = net->add_connector(std::move(server),
+    connector_id = net->add_connector(server,
                                       [](net::connection::id_t id) {
-                                          std::cout << "server connected " << id << std::endl;
+                                          sout() << "server connected " << id << "\n";
                                           connection_id = id;
                                       },
                                       [](net::connection::id_t id, net::error_code ec) {
-                                          std::cout << "server client " << id
+                                          sout() << "server client " << id
                                                     << " disconnected. reason : " << ec.message()
-                                                    << std::endl;
+                                                    << "\n";
                                       },
                                       [](net::connection::id_t id, auto&& msg) {
-                                          std::cout << "server on_msg: " << msg << std::endl;
+                                          sout() << "server on_msg: " << msg << "\n";
                                           std::this_thread::sleep_for(16ms);
                                           auto net = net::get_network();
                                           if(!net)
                                           {
                                               return;
                                           }
-                                          if(msg == "ping")
-                                          {
-                                              net->send_msg(id, "pong");
-                                          }
-                                          else if(msg == "pong")
-                                          {
-                                              net->send_msg(id, "ping");
-                                          }
+
+                                          net->send_msg(id, net::byte_buffer(msg));
+
                                       });
+    server.reset();
 
     while(true)
     {
@@ -103,6 +95,7 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
             break;
         }
     }
+    net->stop();
 }
 
 int main(int argc, char* argv[])
@@ -110,7 +103,7 @@ int main(int argc, char* argv[])
 
     if(argc < 2)
     {
-        std::cerr << "Usage: <server/client/both>" << std::endl;
+        std::cerr << "Usage: <server/client/both>" << "\n";
         return 1;
     }
     std::string what = argv[1];
@@ -136,7 +129,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-        std::cerr << "Usage: <server/client/both>" << std::endl;
+        std::cerr << "Usage: <server/client/both>" << "\n";
         return 1;
     }
     std::string host = "::1";
@@ -173,26 +166,26 @@ int main(int argc, char* argv[])
             test(std::move(server), std::move(clients));
         }
 
-        {
-            std::vector<net::connector_ptr> clients;
-            if(is_client)
-            {
-                for(int i = 0; i < count; ++i)
-                {
-                    clients.emplace_back();
-                    auto& client = clients.back();
-                    client = net::create_tcp_local_client(domain);
-                }
-            }
+//        {
+//            std::vector<net::connector_ptr> clients;
+//            if(is_client)
+//            {
+//                for(int i = 0; i < count; ++i)
+//                {
+//                    clients.emplace_back();
+//                    auto& client = clients.back();
+//                    client = net::create_tcp_local_client(domain);
+//                }
+//            }
 
-            net::connector_ptr server;
-            if(is_server)
-            {
-                server = net::create_tcp_local_server(domain);
-            }
+//            net::connector_ptr server;
+//            if(is_server)
+//            {
+//                server = net::create_tcp_local_server(domain);
+//            }
 
-            test(std::move(server), std::move(clients));
-        }
+//            test(std::move(server), std::move(clients));
+//        }
 
         {
             std::vector<net::connector_ptr> clients;
@@ -215,26 +208,26 @@ int main(int argc, char* argv[])
             test(std::move(server), std::move(clients));
         }
 
-        {
-            std::vector<net::connector_ptr> clients;
-            if(is_client)
-            {
-                for(int i = 0; i < count; ++i)
-                {
-                    clients.emplace_back();
-                    auto& client = clients.back();
-                    client = net::create_tcp_ssl_local_client(domain, cert_file);
-                }
-            }
+//        {
+//            std::vector<net::connector_ptr> clients;
+//            if(is_client)
+//            {
+//                for(int i = 0; i < count; ++i)
+//                {
+//                    clients.emplace_back();
+//                    auto& client = clients.back();
+//                    client = net::create_tcp_ssl_local_client(domain, cert_file);
+//                }
+//            }
 
-            net::connector_ptr server;
-            if(is_server)
-            {
-                server = net::create_tcp_ssl_local_server(domain, cert_chain_file, private_key_file, dh_file);
-            }
+//            net::connector_ptr server;
+//            if(is_server)
+//            {
+//                server = net::create_tcp_ssl_local_server(domain, cert_chain_file, private_key_file, dh_file);
+//            }
 
-            test(std::move(server), std::move(clients));
-        }
+//            test(std::move(server), std::move(clients));
+//        }
     }
     catch(std::exception& e)
     {

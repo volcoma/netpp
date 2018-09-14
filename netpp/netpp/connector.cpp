@@ -15,7 +15,7 @@ connector::connector()
 
 void connector::stop(const std::error_code& ec)
 {
-    auto connections = [&]() {
+	auto connections = [&]() {
 		std::lock_guard<std::mutex> lock(guard_);
 		return std::move(connections_);
 	}();
@@ -28,7 +28,7 @@ void connector::stop(const std::error_code& ec)
 
 void connector::stop(connection::id_t id, const std::error_code& ec)
 {
-    std::unique_lock<std::mutex> lock(guard_);
+	std::unique_lock<std::mutex> lock(guard_);
 	auto it = connections_.find(id);
 	if(it != std::end(connections_))
 	{
@@ -40,7 +40,7 @@ void connector::stop(connection::id_t id, const std::error_code& ec)
 
 void connector::send_msg(connection::id_t id, byte_buffer&& msg)
 {
-    std::unique_lock<std::mutex> lock(guard_);
+	std::unique_lock<std::mutex> lock(guard_);
 	auto it = connections_.find(id);
 	if(it != std::end(connections_))
 	{
@@ -52,13 +52,13 @@ void connector::send_msg(connection::id_t id, byte_buffer&& msg)
 
 void connector::add(const connection_ptr& session)
 {
-    std::lock_guard<std::mutex> lock(guard_);
+	std::lock_guard<std::mutex> lock(guard_);
 	connections_.emplace(session->id, session);
 }
 
 void connector::remove(const connection_ptr& session)
 {
-    std::lock_guard<std::mutex> lock(guard_);
+	std::lock_guard<std::mutex> lock(guard_);
 	connections_.erase(session->id);
 }
 

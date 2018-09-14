@@ -13,12 +13,9 @@
 #include <deque>
 namespace net
 {
-using asio::io_context;
-using asio::steady_timer;
+namespace tcp
+{
 //----------------------------------------------------------------------
-// If either deadline actor determines that the corresponding deadline has
-// expired, the socket is closed and any outstanding operations are cancelled.
-//
 // The input actor reads messages from the socket.
 //
 //  +------------+
@@ -60,11 +57,11 @@ using asio::steady_timer;
 // sent, the output actor again waits for the output queue to become non-empty.
 
 template <typename socket_type, typename builder_type>
-class tcp_connection : public connection,
-					   public std::enable_shared_from_this<tcp_connection<socket_type, builder_type>>
+class async_connection : public connection,
+						 public std::enable_shared_from_this<async_connection<socket_type, builder_type>>
 {
 public:
-	tcp_connection(std::shared_ptr<socket_type> socket, io_context& context);
+	async_connection(std::shared_ptr<socket_type> socket, asio::io_context& context);
 
 	void start() override;
 	void stop(const error_code& ec) override;
@@ -80,19 +77,22 @@ private:
 
 	mutable std::mutex guard_;
 	builder_type msg_builder_;
+
+	byte_buffer input_buffer_;
+
 	std::deque<byte_buffer> output_queue_;
 
-	io_context::strand strand_;
+	asio::io_context::strand strand_;
 
 	std::shared_ptr<socket_type> socket_;
-	steady_timer non_empty_output_queue_;
+	asio::steady_timer non_empty_output_queue_;
 
 	std::atomic<bool> connected{false};
 };
 
 template <typename socket_type, typename builder_type>
-tcp_connection<socket_type, builder_type>::tcp_connection(std::shared_ptr<socket_type> socket,
-														  io_context& context)
+async_connection<socket_type, builder_type>::async_connection(std::shared_ptr<socket_type> socket,
+															  asio::io_context& context)
 	: strand_(context)
 	, socket_(socket)
 	, non_empty_output_queue_(context)
@@ -101,11 +101,11 @@ tcp_connection<socket_type, builder_type>::tcp_connection(std::shared_ptr<socket
 	// The non_empty_output_queue_ steady_timer is set to the maximum time
 	// point whenever the output queue is empty. This ensures that the output
 	// actor stays asleep until a message is put into the queue.
-	non_empty_output_queue_.expires_at(steady_timer::time_point::max());
+	non_empty_output_queue_.expires_at(asio::steady_timer::time_point::max());
 }
 
 template <typename socket_type, typename builder_type>
-void tcp_connection<socket_type, builder_type>::start()
+void async_connection<socket_type, builder_type>::start()
 {
 	connected = true;
 	start_read();
@@ -113,14 +113,14 @@ void tcp_connection<socket_type, builder_type>::start()
 	on_connect(this->shared_from_this());
 }
 template <typename socket_type, typename builder_type>
-void tcp_connection<socket_type, builder_type>::stop(const error_code& ec)
+void async_connection<socket_type, builder_type>::stop(const error_code& ec)
 {
 	{
 		std::lock_guard<std::mutex> lock(guard_);
 		non_empty_output_queue_.cancel();
-        std::error_code ignore;
-        socket_->lowest_layer().shutdown(asio::socket_base::shutdown_both, ignore);
-        socket_->lowest_layer().close(ignore);
+		std::error_code ignore;
+		socket_->lowest_layer().shutdown(asio::socket_base::shutdown_both, ignore);
+		socket_->lowest_layer().close(ignore);
 	}
 
 	if(connected.exchange(false))
@@ -130,15 +130,14 @@ void tcp_connection<socket_type, builder_type>::stop(const error_code& ec)
 	}
 }
 template <typename socket_type, typename builder_type>
-bool tcp_connection<socket_type, builder_type>::stopped() const
+bool async_connection<socket_type, builder_type>::stopped() const
 {
-    std::lock_guard<std::mutex> lock(guard_);
-    return !socket_->lowest_layer().is_open();
-	//return !connected;
+	std::lock_guard<std::mutex> lock(guard_);
+	return !socket_->lowest_layer().is_open();
 }
 
 template <typename socket_type, typename builder_type>
-void tcp_connection<socket_type, builder_type>::send_msg(byte_buffer&& msg)
+void async_connection<socket_type, builder_type>::send_msg(byte_buffer&& msg)
 {
 	auto output_msg = builder_type::write_header(msg);
 	std::copy(std::begin(msg), std::end(msg), std::back_inserter(output_msg));
@@ -148,22 +147,21 @@ void tcp_connection<socket_type, builder_type>::send_msg(byte_buffer&& msg)
 
 	// Signal that the output queue contains messages. Modifying the expiry
 	// will wake the output actor, if it is waiting on the timer.
-	non_empty_output_queue_.expires_at(steady_timer::time_point::min());
+	non_empty_output_queue_.expires_at(asio::steady_timer::time_point::min());
 }
 template <typename socket_type, typename builder_type>
-void tcp_connection<socket_type, builder_type>::start_read()
+void async_connection<socket_type, builder_type>::start_read()
 {
 	std::lock_guard<std::mutex> lock(guard_);
 
 	// Start an asynchronous operation to read a certain number of bytes.
-	auto expected = msg_builder_.get_next_read();
-	asio::async_read(*socket_, asio::dynamic_buffer(msg_builder_.get_buffer()),
-					 asio::transfer_exactly(expected),
-					 strand_.wrap(std::bind(&tcp_connection::handle_read, this->shared_from_this(),
+	auto operation = msg_builder_.get_next_operation();
+	asio::async_read(*socket_, asio::dynamic_buffer(input_buffer_), asio::transfer_exactly(operation.bytes),
+					 strand_.wrap(std::bind(&async_connection::handle_read, this->shared_from_this(),
 											std::placeholders::_1, std::placeholders::_2)));
 }
 template <typename socket_type, typename builder_type>
-void tcp_connection<socket_type, builder_type>::handle_read(const error_code& ec, std::size_t)
+void async_connection<socket_type, builder_type>::handle_read(const error_code& ec, std::size_t)
 {
 	if(stopped())
 	{
@@ -172,19 +170,19 @@ void tcp_connection<socket_type, builder_type>::handle_read(const error_code& ec
 
 	if(!ec)
 	{
-		auto extract_buffer = [&]() -> byte_buffer {
+		auto extract_msg = [this]() -> byte_buffer {
 			std::unique_lock<std::mutex> lock(guard_);
 			// Extract the message from the buffer.
-			msg_builder_.read_chunk();
+			msg_builder_.process_operation(std::move(input_buffer_));
 			if(msg_builder_.is_ready())
 			{
-				return msg_builder_.extract_buffer();
+				return msg_builder_.extract_msg();
 			}
 
 			return {};
 		};
 
-		auto msg = extract_buffer();
+		auto msg = extract_msg();
 
 		start_read();
 
@@ -199,7 +197,7 @@ void tcp_connection<socket_type, builder_type>::handle_read(const error_code& ec
 	}
 }
 template <typename socket_type, typename builder_type>
-void tcp_connection<socket_type, builder_type>::await_output()
+void async_connection<socket_type, builder_type>::await_output()
 {
 	if(stopped())
 	{
@@ -214,9 +212,9 @@ void tcp_connection<socket_type, builder_type>::await_output()
 			// There are no messages that are ready to be sent. The actor goes to
 			// sleep by waiting on the non_empty_output_queue_ timer. When a new
 			// message is added, the timer will be modified and the actor will wake.
-			non_empty_output_queue_.expires_at(steady_timer::time_point::max());
+			non_empty_output_queue_.expires_at(asio::steady_timer::time_point::max());
 			non_empty_output_queue_.async_wait(
-				strand_.wrap(std::bind(&tcp_connection::await_output, this->shared_from_this())));
+				strand_.wrap(std::bind(&async_connection::await_output, this->shared_from_this())));
 		}
 
 		return empty;
@@ -228,17 +226,17 @@ void tcp_connection<socket_type, builder_type>::await_output()
 	}
 }
 template <typename socket_type, typename builder_type>
-void tcp_connection<socket_type, builder_type>::start_write()
+void async_connection<socket_type, builder_type>::start_write()
 {
 	std::lock_guard<std::mutex> lock(guard_);
 
 	// Start an asynchronous operation to send a message.
 	asio::async_write(*socket_, asio::buffer(output_queue_.front()),
-					  strand_.wrap(std::bind(&tcp_connection::handle_write, this->shared_from_this(),
+					  strand_.wrap(std::bind(&async_connection::handle_write, this->shared_from_this(),
 											 std::placeholders::_1)));
 }
 template <typename socket_type, typename builder_type>
-void tcp_connection<socket_type, builder_type>::handle_write(const error_code& ec)
+void async_connection<socket_type, builder_type>::handle_write(const error_code& ec)
 {
 	if(stopped())
 	{
@@ -257,5 +255,5 @@ void tcp_connection<socket_type, builder_type>::handle_write(const error_code& e
 		stop(ec);
 	}
 }
-
+}
 } // namespace net

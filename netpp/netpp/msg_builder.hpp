@@ -2,18 +2,31 @@
 #include "connector.h"
 #include <cstdint>
 #include <cstring>
-
+#include <cassert>
 namespace net
 {
 
 template <typename T>
 class msg_builder
 {
-public:
-	static size_t get_header_size()
+    enum class op_type
 	{
-		return sizeof(T);
-	}
+		read_header,
+		read_msg
+	};
+
+	struct operation
+	{
+		op_type type = op_type::read_header;
+		size_t bytes = get_header_size();
+	};
+
+
+public:
+    static size_t get_header_size()
+    {
+        return sizeof(T);
+    }
 
 	static byte_buffer write_header(const byte_buffer& msg)
 	{
@@ -30,44 +43,57 @@ public:
 		return output_msg;
 	}
 
-	void read_chunk()
+	void process_operation(byte_buffer&& buffer)
 	{
-		if(msg_size == 0)
+        assert(buffer.size() == op_.bytes && "read was not completed properly");
+
+		switch(op_.type)
 		{
-			// read header
-			std::memcpy(&msg_size, buffer.data(), buffer.size());
-			buffer.clear();
+			case op_type::read_header:
+			{
+				// read header
+				size_t msg_size = 0;
+				std::memcpy(&msg_size, buffer.data(), buffer.size());
+                buffer.clear();
+
+                set_next_operation(op_type::read_msg, msg_size);
+			}
+			break;
+
+			case op_type::read_msg:
+			{
+                msg_ = std::move(buffer);
+				set_next_operation(op_type::read_header, get_header_size());
+			}
+			break;
 		}
 	}
 
-	size_t get_next_read() const
+	const operation& get_next_operation() const
 	{
-		if(msg_size == 0)
-		{
-			return get_header_size();
-		}
-
-		return msg_size;
-	}
-	bool is_ready() const
-	{
-		return buffer.size() == msg_size;
+		return op_;
 	}
 
-	byte_buffer&& extract_buffer()
-	{
-		msg_size = 0;
-		return std::move(buffer);
-	}
+    bool is_ready() const
+    {
+        return !msg_.empty();
+    }
 
-	byte_buffer& get_buffer()
+	byte_buffer&& extract_msg()
 	{
-		return buffer;
+		return std::move(msg_);
 	}
 
 private:
-	byte_buffer buffer;
-	size_t msg_size = 0;
+
+	void set_next_operation(op_type type, size_t size)
+	{
+		op_.type = type;
+		op_.bytes = size;
+	}
+
+	byte_buffer msg_;
+	operation op_;
 };
 
 } // namespace net

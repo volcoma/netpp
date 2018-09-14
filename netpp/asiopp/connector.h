@@ -4,6 +4,7 @@
 #include <asio/io_context.hpp>
 #include <asio/io_context_strand.hpp>
 
+#include "utils.hpp"
 namespace net
 {
 using namespace asio;
@@ -15,7 +16,6 @@ public:
 
 protected:
 	asio::io_context& io_context_;
-    asio::io_context::strand strand_;
 };
 
 } // namespace net

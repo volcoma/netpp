@@ -28,14 +28,14 @@ struct connector
 	void stop(connection::id_t id, const std::error_code& ec);
 	void send_msg(connection::id_t id, byte_buffer&& msg);
 
-    void add(const connection_ptr& session);
+	void add(const connection_ptr& session);
 	void remove(const connection_ptr& session);
 
 	on_connect_t on_connect;
 	on_disconnect_t on_disconnect;
 	on_msg_t on_msg;
 
-    std::mutex guard_;
+	std::mutex guard_;
 	std::map<connection::id_t, connection_ptr> connections_;
 
 	const id_t id;

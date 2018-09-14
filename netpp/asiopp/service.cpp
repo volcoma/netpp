@@ -34,17 +34,16 @@ void create_service_threads(size_t workers = 1)
 	auto& threads = get_service_threads();
 	for(size_t i = 0; i < workers; ++i)
 	{
-		threads.emplace_back([]()
-        {
-            try
-            {
-                get_io_context().run();
-            }
-            catch(std::exception& e)
-            {
-                std::cerr << "Exception: " << e.what() << "\n";
-            }
-        });
+		threads.emplace_back([]() {
+			try
+			{
+				get_io_context().run();
+			}
+			catch(std::exception& e)
+			{
+				std::cerr << "Exception: " << e.what() << "\n";
+			}
+		});
 	}
 }
 }
@@ -102,8 +101,7 @@ connector_ptr create_tcp_ssl_server(uint16_t port, const std::string& cert_chain
 											dh_file);
 }
 
-connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port,
-									const std::string& cert_file)
+connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const std::string& cert_file)
 {
 	using connector_type = net::tcp::ssl_client;
 

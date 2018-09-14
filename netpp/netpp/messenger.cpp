@@ -120,37 +120,46 @@ void messenger::remove_connector(connector::id_t id)
 		return;
 	}
 	auto info = it->second;
-	connectors_.erase(it);
+
+	// can no longer recieve connections
+	info->on_connect = nullptr;
+
 	lock.unlock();
 
-	info->connector->stop(id, {});
+	if(info->connector)
+	{
+		info->connector->stop({});
+	}
+
+	lock.lock();
+	connectors_.erase(it);
 }
 
 size_t messenger::get_connections_count() const
 {
 	std::unique_lock<std::mutex> lock(guard_);
-    return connections_.size();
+	return connections_.size();
 }
 
 void messenger::stop()
 {
-    auto connectors = [&]()
-    {
-        std::unique_lock<std::mutex> lock(guard_);
-        return std::move(connectors_);
-    }();
+	std::unique_lock<std::mutex> lock(guard_);
+	for(auto& kvp : connectors_)
+	{
+		auto info = kvp.second;
+		// can no longer recieve connections
+		info->on_connect = nullptr;
+		lock.unlock();
+		info->connector->stop({});
+		lock.lock();
+	}
 
-    for(auto& kvp : connectors)
-    {
-        auto info = kvp.second;
-        info->connector->stop({});
-    }
+	connectors_.clear();
 }
 
 void messenger::on_connect(connector::id_t connector_id, connection::id_t id)
 {
 	std::unique_lock<std::mutex> lock(guard_);
-	connections_[id] = connector_id;
 	auto it = connectors_.find(connector_id);
 	if(it == std::end(connectors_))
 	{
@@ -158,6 +167,11 @@ void messenger::on_connect(connector::id_t connector_id, connection::id_t id)
 	}
 	auto info = it->second;
 
+	// if connecting is still allowed
+	if(info->on_connect)
+	{
+		connections_[id] = connector_id;
+	}
 	lock.unlock();
 	if(info->on_connect)
 	{
@@ -169,7 +183,7 @@ void messenger::on_disconnect(connector::id_t connector_id, connection::id_t id,
 {
 	std::unique_lock<std::mutex> lock(guard_);
 
-    connections_.erase(id);
+	connections_.erase(id);
 	auto it = connectors_.find(connector_id);
 	if(it == std::end(connectors_))
 	{
@@ -203,47 +217,45 @@ void messenger::on_msg(connector::id_t connector_id, connection::id_t id, const 
 }
 std::vector<std::function<void()>>& get_deleters()
 {
-    static std::vector<std::function<void()>> deleters;
-    return deleters;
+	static std::vector<std::function<void()>> deleters;
+	return deleters;
 }
 
 std::mutex& get_messengers_mutex()
 {
-    static std::mutex s_mutex;
-    return s_mutex;
+	static std::mutex s_mutex;
+	return s_mutex;
 }
 messenger::ptr get_network()
 {
-    static std::mutex messenger_mutex;
+	static std::mutex messenger_mutex;
 
-    static net::messenger::ptr net = []()
-    {
-        auto& mutex = get_messengers_mutex();
-        auto& deleters = get_deleters();
-        std::lock_guard<std::mutex> lock(mutex);
-        deleters.emplace_back([]()
-        {
-            std::lock_guard<std::mutex> lock(messenger_mutex);
-            net->stop();
-            net.reset();
-        });
-        return net::messenger::create();
-    }();
+	static net::messenger::ptr net = []() {
+		auto& mutex = get_messengers_mutex();
+		auto& deleters = get_deleters();
+		std::lock_guard<std::mutex> lock(mutex);
+		deleters.emplace_back([]() {
+			std::lock_guard<std::mutex> lock(messenger_mutex);
+			net->stop();
+			net.reset();
+		});
+		return net::messenger::create();
+	}();
 
-    std::lock_guard<std::mutex> lock(messenger_mutex);
-    return net;
+	std::lock_guard<std::mutex> lock(messenger_mutex);
+	return net;
 }
 
 void deinit_messengers()
 {
-    auto& mutex = get_messengers_mutex();
-    std::unique_lock<std::mutex> lock(mutex);
-    auto deleters = std::move(get_deleters());
-    lock.unlock();
-    for(auto& deleter : deleters)
-    {
-        deleter();
-    }
+	auto& mutex = get_messengers_mutex();
+	std::unique_lock<std::mutex> lock(mutex);
+	auto deleters = std::move(get_deleters());
+	lock.unlock();
+	for(auto& deleter : deleters)
+	{
+		deleter();
+	}
 }
 
 } // namespace net
