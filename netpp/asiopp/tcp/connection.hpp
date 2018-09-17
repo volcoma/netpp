@@ -4,8 +4,8 @@
 #include <asio/basic_stream_socket.hpp>
 #include <asio/buffer.hpp>
 #include <asio/error.hpp>
-#include <asio/io_context.hpp>
-#include <asio/io_context_strand.hpp>
+#include <asio/io_service.hpp>
+#include <asio/strand.hpp>
 #include <asio/read.hpp>
 #include <asio/steady_timer.hpp>
 #include <asio/strand.hpp>
@@ -59,7 +59,7 @@ template <typename socket_type>
 class async_connection : public connection, public std::enable_shared_from_this<async_connection<socket_type>>
 {
 public:
-	async_connection(const std::shared_ptr<socket_type>& socket, asio::io_context& context);
+	async_connection(const std::shared_ptr<socket_type>& socket, asio::io_service& context);
 
 	void start() override;
 	void stop(const error_code& ec) override;
@@ -75,9 +75,10 @@ private:
 
 	mutable std::mutex guard_;
 
+    //deque to avoid elements invalidation when resizing
 	std::deque<std::vector<byte_buffer>> output_queue_;
 
-	asio::io_context::strand strand_;
+	asio::io_service::strand strand_;
 
 	std::shared_ptr<socket_type> socket_;
 	asio::steady_timer non_empty_output_queue_;
@@ -87,7 +88,7 @@ private:
 
 template <typename socket_type>
 async_connection<socket_type>::async_connection(const std::shared_ptr<socket_type>& socket,
-												asio::io_context& context)
+												asio::io_service& context)
 	: strand_(context)
 	, socket_(socket)
 	, non_empty_output_queue_(context)
@@ -114,9 +115,6 @@ void async_connection<socket_type>::stop(const error_code& ec)
 	{
 		std::lock_guard<std::mutex> lock(guard_);
 		non_empty_output_queue_.cancel();
-		std::error_code ignore;
-		socket_->lowest_layer().shutdown(asio::socket_base::shutdown_both, ignore);
-		socket_->lowest_layer().close(ignore);
 	}
 
 	if(connected.exchange(false))

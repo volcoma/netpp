@@ -76,7 +76,7 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
 
 		if(i++ % 50 == 0)
 		{
-			// net->send_msg(1, "from_main");
+			net->send_msg(1, to_buffer("from_main"));
 		}
 	}
 	net->stop();
@@ -178,44 +178,44 @@ int main(int argc, char* argv[])
 		}
 
         // TCP SSL SOCKET TEST
-		{
-			std::vector<net::connector_ptr> clients;
-			if(is_client)
-			{
-				for(int i = 0; i < count; ++i)
-				{
-					clients.emplace_back();
-					auto& client = clients.back();
-					client = net::create_tcp_ssl_client(host, port, cert_file);
-				}
-			}
-			net::connector_ptr server;
-			if(is_server)
-			{
-				server = net::create_tcp_ssl_server(port, cert_chain_file, private_key_file, dh_file);
-			}
-			test(std::move(server), std::move(clients));
-		}
+//		{
+//			std::vector<net::connector_ptr> clients;
+//			if(is_client)
+//			{
+//				for(int i = 0; i < count; ++i)
+//				{
+//					clients.emplace_back();
+//					auto& client = clients.back();
+//					client = net::create_tcp_ssl_client(host, port, cert_file);
+//				}
+//			}
+//			net::connector_ptr server;
+//			if(is_server)
+//			{
+//				server = net::create_tcp_ssl_server(port, cert_chain_file, private_key_file, dh_file);
+//			}
+//			test(std::move(server), std::move(clients));
+//		}
 
-        // TCP SSL DOMAIN SOCKET TEST
-		{
-			std::vector<net::connector_ptr> clients;
-			if(is_client)
-			{
-				for(int i = 0; i < count; ++i)
-				{
-					clients.emplace_back();
-					auto& client = clients.back();
-					client = net::create_tcp_ssl_local_client(domain, cert_file);
-				}
-			}
-			net::connector_ptr server;
-			if(is_server)
-			{
-				server = net::create_tcp_ssl_local_server(domain, cert_chain_file, private_key_file, dh_file);
-			}
-			test(std::move(server), std::move(clients));
-		}
+//        // TCP SSL DOMAIN SOCKET TEST
+//		{
+//			std::vector<net::connector_ptr> clients;
+//			if(is_client)
+//			{
+//				for(int i = 0; i < count; ++i)
+//				{
+//					clients.emplace_back();
+//					auto& client = clients.back();
+//					client = net::create_tcp_ssl_local_client(domain, cert_file);
+//				}
+//			}
+//			net::connector_ptr server;
+//			if(is_server)
+//			{
+//				server = net::create_tcp_ssl_local_server(domain, cert_chain_file, private_key_file, dh_file);
+//			}
+//			test(std::move(server), std::move(clients));
+//		}
 	}
 	catch(std::exception& e)
 	{

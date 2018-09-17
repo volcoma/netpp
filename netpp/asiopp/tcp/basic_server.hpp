@@ -3,7 +3,6 @@
 
 #include <netpp/connector.h>
 
-#include <asio/io_context.hpp>
 #include <asio/basic_socket_acceptor.hpp>
 
 namespace net
@@ -20,7 +19,7 @@ public:
 	using protocol_endpoint = typename protocol_type::endpoint;
 	using protocol_socket = typename protocol_type::socket;
 
-	basic_server(asio::io_context& io_context, const protocol_endpoint& endpoint)
+	basic_server(asio::io_service& io_context, const protocol_endpoint& endpoint)
         : io_context_(io_context)
 		, acceptor_(io_context)
 	{
@@ -56,7 +55,7 @@ public:
 		auto& lowest_layer = socket->lowest_layer();
 		acceptor_.async_accept(
 			lowest_layer, [weak_this, socket = std::move(socket),
-						   on_connection_established = std::move(f)](const asio::error_code& ec) mutable {
+						   on_connection_established = std::move(f)](const error_code& ec) mutable {
 				if(ec)
 				{
 					log() << "[NET] : Accept error: " << ec.message() << "\n";
@@ -96,7 +95,7 @@ public:
 
 protected:
 	protocol_acceptor acceptor_;
-    asio::io_context& io_context_;
+    asio::io_service& io_context_;
 };
 }
 } // namespace net

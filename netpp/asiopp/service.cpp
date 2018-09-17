@@ -3,7 +3,7 @@
 #include "tcp/client.h"
 #include "tcp/server.h"
 
-#include <asio/io_context.hpp>
+#include <asio/io_service.hpp>
 
 namespace net
 {
@@ -13,13 +13,13 @@ namespace
 {
 auto& get_io_context()
 {
-	static asio::io_context context;
+	static asio::io_service context;
 	return context;
 }
 
 auto& get_work()
 {
-	static auto work = asio::make_work_guard(get_io_context());
+	static auto work = std::make_shared<asio::io_service::work>(get_io_context());
 	return work;
 }
 
@@ -32,6 +32,7 @@ auto& get_service_threads()
 void create_service_threads(size_t workers = 1)
 {
 	auto& threads = get_service_threads();
+    threads.reserve(workers);
 	for(size_t i = 0; i < workers; ++i)
 	{
 		threads.emplace_back([]() {
@@ -83,7 +84,7 @@ net::connector_ptr create_tcp_client(const std::string& host, uint16_t port)
 	using type = net::tcp::client;
 	auto& net_context = get_io_context();
 	type::protocol::resolver r(net_context);
-	auto res = r.resolve(host, std::to_string(port));
+	auto res = r.resolve(type::protocol::resolver::query(host, std::to_string(port)));
 	auto endpoint = res->endpoint();
 	return std::make_shared<type>(net_context, endpoint);
 }
@@ -104,7 +105,7 @@ connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, cons
 
 	auto& net_context = get_io_context();
 	type::protocol::resolver r(net_context);
-	auto res = r.resolve(host, std::to_string(port));
+	auto res = r.resolve(type::protocol::resolver::query(host, std::to_string(port)));
 	auto endpoint = res->endpoint();
 	return std::make_shared<type>(net_context, endpoint, cert_file);
 }

@@ -41,6 +41,7 @@ private:
 
 	struct connection_info
 	{
+        std::shared_ptr<void> sentinel;
 		connection_ptr connection;
 	};
 	void on_new_connection(connection_ptr& connection, const user_info_ptr& info);

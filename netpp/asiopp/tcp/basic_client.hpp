@@ -2,7 +2,6 @@
 #include "connection.hpp"
 
 #include <netpp/connector.h>
-#include <asio/io_context.hpp>
 #include <asio/basic_socket_acceptor.hpp>
 
 namespace net
@@ -20,7 +19,7 @@ public:
 	using protocol_endpoint = typename protocol_type::endpoint;
 	using protocol_socket = typename protocol_type::socket;
 
-	basic_client(asio::io_context& io_context, const protocol_endpoint& endpoint)
+	basic_client(asio::io_service& io_context, const protocol_endpoint& endpoint)
 		: io_context_(io_context)
 		, endpoint_(endpoint)
 	{
@@ -108,7 +107,7 @@ public:
 
 protected:
 	protocol_endpoint endpoint_;
-    asio::io_context& io_context_;
+    asio::io_service& io_context_;
 };
 }
 } // namespace net

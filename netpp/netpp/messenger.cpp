@@ -110,6 +110,13 @@ void messenger::on_new_connection(connection_ptr& connection, const user_info_pt
 {
 	auto weak_this = weak_ptr(shared_from_this());
 
+    connection_info conn_info;
+	conn_info.connection = connection;
+
+    //sentinel to be used to monitor if connection has been removed
+    //instead of expensive lookup into the connections container
+    conn_info.sentinel = std::make_shared<connection::id_t>(connection->id);
+
 	connection->on_disconnect.emplace_back([weak_this, info](connection::id_t id, const error_code& ec) {
 		auto shared_this = weak_this.lock();
 		if(!shared_this)
@@ -120,18 +127,16 @@ void messenger::on_new_connection(connection_ptr& connection, const user_info_pt
 		shared_this->on_disconnect(id, ec, info);
 	});
 
-	connection->on_msg = [weak_this, info](connection::id_t id, const byte_buffer& msg) {
+    auto sentinel = std::weak_ptr<void>(conn_info.sentinel);
+	connection->on_msg = [weak_this, info, sentinel](connection::id_t id, const byte_buffer& msg) {
 		auto shared_this = weak_this.lock();
-		if(!shared_this)
+		if(!shared_this || sentinel.expired())
 		{
 			return;
 		}
 
 		shared_this->on_msg(id, msg, info);
 	};
-
-	connection_info conn_info;
-	conn_info.connection = connection;
 
 	{
 		std::lock_guard<std::mutex> lock(guard_);

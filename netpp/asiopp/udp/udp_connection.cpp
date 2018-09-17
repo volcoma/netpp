@@ -5,7 +5,7 @@
 namespace net
 {
 
-udp_connection::udp_connection(asio::io_context& io_context, udp::endpoint endpoint)
+udp_connection::udp_connection(asio::io_service& io_context, udp::endpoint endpoint)
 	: socket_(io_context)
 	, endpoint_(std::move(endpoint))
 {

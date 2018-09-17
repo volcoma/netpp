@@ -1,7 +1,8 @@
 #pragma once
 #include "basic_server.hpp"
-#include <asio/ssl.hpp>
+#include "compatibility.hpp"
 
+#include <asio/ssl.hpp>
 namespace net
 {
 namespace tcp
@@ -17,7 +18,7 @@ public:
 	using protocol_acceptor = typename base_type::protocol_acceptor;
 	using protocol_socket = typename base_type::protocol_socket;
 
-	basic_ssl_server(asio::io_context& io_context, const protocol_endpoint& listen_endpoint,
+	basic_ssl_server(asio::io_service& io_context, const protocol_endpoint& listen_endpoint,
 					 const std::string& cert_chain_file, const std::string& private_key_file,
 					 const std::string& dh_file)
 		: base_type(io_context, listen_endpoint)
@@ -34,7 +35,7 @@ public:
 
 	void start()
 	{
-		auto socket = std::make_unique<protocol_socket>(this->io_context_);
+        auto socket = compatibility::make_socket<protocol_socket>(this->io_context_);
 
 		auto weak_this = weak_ptr(this->shared_from_this());
 		auto on_connection_established = [weak_this, this, socket = socket.get()]() mutable
@@ -44,8 +45,7 @@ public:
 			{
 				return;
 			}
-			using socket_type = asio::ssl::stream<protocol_socket>;
-			auto ssl_socket = std::make_shared<socket_type>(std::move(*socket), context_);
+            auto ssl_socket = compatibility::make_ssl_socket(std::move(*socket), context_);
 
 			// Start the asynchronous handshake operation.
 			ssl_socket->async_handshake(asio::ssl::stream_base::server,

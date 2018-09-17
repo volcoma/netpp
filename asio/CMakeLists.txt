@@ -2,8 +2,8 @@
 # Find ASIO (the standalone version, not Boost) If asio isn't installed in
 # a standard directory, add the correct directory to CMAKE_PREFIX_PATH (see
 # the main README for more information).
-#find_path(ASIO_DIR NAMES asio.hpp)
-set(ASIO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/asio/include)
+find_path(ASIO_DIR NAMES asio.hpp)
+#set(ASIO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/asio/include)
 # Hide this variable from CMake GUIs and `cmake -L`
 set_property(CACHE ASIO_DIR PROPERTY ADVANCED TRUE)
 if (NOT ASIO_DIR)
@@ -103,4 +103,5 @@ target_link_libraries(asio INTERFACE OpenSSL::SSL OpenSSL::Crypto)
 target_compile_definitions(asio
                            INTERFACE ASIO_STANDALONE
                            INTERFACE ASIO_HAS_STD_CHRONO
-                           INTERFACE ASIO_HAS_STD_THREAD)
+                           INTERFACE ASIO_HAS_STD_THREAD
+                           INTERFACE ASIO_HAS_MOVE)
