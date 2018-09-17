@@ -12,7 +12,7 @@ udp_connection::udp_connection(asio::io_context& io_context, udp::endpoint endpo
 	socket_.set_option(udp::socket::broadcast(true));
 }
 
-void udp_connection::send_msg(byte_buffer&& msg)
+void udp_connection::send_msg(byte_buffer&& msg, data_channel channel)
 {
 	asio::error_code ignored_ec;
 	socket_.send_to(asio::buffer(msg), endpoint_, 0, ignored_ec);

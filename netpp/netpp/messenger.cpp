@@ -19,48 +19,31 @@ connector::id_t messenger::add_connector(const connector_ptr& connector, on_conn
 		return 0;
 	}
 	auto connector_id = connector->id;
-	if(connector->on_connect)
+	if(connector->on_connection_ready)
 	{
 		return connector_id;
 	}
-	auto info = std::make_shared<connector_info>();
-	info->connector = connector;
+	auto info = std::make_shared<user_info>();
 	info->on_connect = std::move(on_connect);
 	info->on_disconnect = std::move(on_disconnect);
 	info->on_msg = std::move(on_msg);
 
 	auto weak_this = weak_ptr(shared_from_this());
-	connector->on_connect = [weak_this, connector_id](connection::id_t id) {
+
+	connector->on_connection_ready = [info, weak_this](connection_ptr connection) {
 		auto shared_this = weak_this.lock();
 		if(!shared_this)
 		{
 			return;
 		}
 
-		shared_this->on_connect(connector_id, id);
+		shared_this->on_new_connection(connection, info);
 	};
 
-	connector->on_disconnect = [weak_this, connector_id](connection::id_t id, const error_code& ec) {
-		auto shared_this = weak_this.lock();
-		if(!shared_this)
-		{
-			return;
-		}
-
-		shared_this->on_disconnect(connector_id, id, ec);
-	};
-
-	connector->on_msg = [weak_this, connector_id](connection::id_t id, const byte_buffer& msg) {
-		auto shared_this = weak_this.lock();
-		if(!shared_this)
-		{
-			return;
-		}
-
-		shared_this->on_msg(connector_id, id, msg);
-	};
-
-	connectors_.emplace(connector->id, std::move(info));
+	{
+		std::unique_lock<std::mutex> lock(guard_);
+		connectors_.emplace(connector->id, connector);
+	}
 	connector->start();
 	return connector_id;
 }
@@ -74,18 +57,10 @@ void messenger::send_msg(connection::id_t id, byte_buffer&& msg)
 	{
 		return;
 	}
-	auto& connector_id = conn_it->second;
-
-	auto it = connectors_.find(connector_id);
-	if(it == std::end(connectors_))
-	{
-		return;
-	}
-	auto info = it->second;
-
+	auto& conn_info = conn_it->second;
+	auto connection = conn_info.connection;
 	lock.unlock();
-
-	info->connector->send_msg(id, std::move(msg));
+	connection->send_msg(std::move(msg), 0);
 }
 
 void messenger::disconnect(connection::id_t id)
@@ -97,119 +72,94 @@ void messenger::disconnect(connection::id_t id)
 	{
 		return;
 	}
-	auto& connector_id = conn_it->second;
-
-	auto it = connectors_.find(connector_id);
-	if(it == std::end(connectors_))
-	{
-		return;
-	}
-	auto info = it->second;
-
+	auto& conn_info = conn_it->second;
+	auto connection = conn_info.connection;
 	lock.unlock();
-
-	info->connector->stop(id, {});
+	connection->stop({});
 }
 
 void messenger::remove_connector(connector::id_t id)
 {
 	std::unique_lock<std::mutex> lock(guard_);
-	auto it = connectors_.find(id);
-	if(it == std::end(connectors_))
-	{
-		return;
-	}
-	auto info = it->second;
-
-	// can no longer recieve connections
-	info->on_connect = nullptr;
-
-	lock.unlock();
-
-	if(info->connector)
-	{
-		info->connector->stop({});
-	}
-
-	lock.lock();
-	connectors_.erase(it);
+	connectors_.erase(id);
 }
 
-size_t messenger::get_connections_count() const
+bool messenger::empty() const
 {
 	std::unique_lock<std::mutex> lock(guard_);
-	return connections_.size();
+	return connectors_.empty() && connections_.empty();
 }
 
 void messenger::stop()
 {
 	std::unique_lock<std::mutex> lock(guard_);
-	for(auto& kvp : connectors_)
-	{
-		auto info = kvp.second;
-		// can no longer recieve connections
-		info->on_connect = nullptr;
-		lock.unlock();
-		info->connector->stop({});
-		lock.lock();
-	}
-
 	connectors_.clear();
-}
 
-void messenger::on_connect(connector::id_t connector_id, connection::id_t id)
-{
-	std::unique_lock<std::mutex> lock(guard_);
-	auto it = connectors_.find(connector_id);
-	if(it == std::end(connectors_))
-	{
-		return;
-	}
-	auto info = it->second;
-
-	// if connecting is still allowed
-	if(info->on_connect)
-	{
-		connections_[id] = connector_id;
-	}
+	auto connections = std::move(connections_);
 	lock.unlock();
-	if(info->on_connect)
+
+	for(auto& kvp : connections)
 	{
-		info->on_connect(id);
+		auto& conn_info = kvp.second;
+		auto& connection = conn_info.connection;
+		connection->stop({});
 	}
 }
 
-void messenger::on_disconnect(connector::id_t connector_id, connection::id_t id, error_code ec)
+void messenger::on_new_connection(connection_ptr& connection, const user_info_ptr& info)
 {
-	std::unique_lock<std::mutex> lock(guard_);
+	auto weak_this = weak_ptr(shared_from_this());
 
-	connections_.erase(id);
-	auto it = connectors_.find(connector_id);
-	if(it == std::end(connectors_))
+	connection->on_disconnect.emplace_back([weak_this, info](connection::id_t id, const error_code& ec) {
+		auto shared_this = weak_this.lock();
+		if(!shared_this)
+		{
+			return;
+		}
+
+		shared_this->on_disconnect(id, ec, info);
+	});
+
+	connection->on_msg = [weak_this, info](connection::id_t id, const byte_buffer& msg) {
+		auto shared_this = weak_this.lock();
+		if(!shared_this)
+		{
+			return;
+		}
+
+		shared_this->on_msg(id, msg, info);
+	};
+
+	connection_info conn_info;
+	conn_info.connection = connection;
+
 	{
-		return;
+		std::lock_guard<std::mutex> lock(guard_);
+		connections_.emplace(connection->id, std::move(conn_info));
 	}
-	auto info = it->second;
-	lock.unlock();
 
+	connection->start();
+
+	if(info->on_connect)
+	{
+		info->on_connect(connection->id);
+	}
+}
+
+void messenger::on_disconnect(connection::id_t id, error_code ec, const user_info_ptr& info)
+{
+	{
+		std::unique_lock<std::mutex> lock(guard_);
+		connections_.erase(id);
+	}
 	if(info->on_disconnect)
 	{
 		info->on_disconnect(id, ec);
 	}
 }
 
-void messenger::on_msg(connector::id_t connector_id, connection::id_t id, const byte_buffer& msg)
+void messenger::on_msg(connection::id_t id, const byte_buffer& msg, const user_info_ptr& info)
 {
-	std::unique_lock<std::mutex> lock(guard_);
-
-	auto it = connectors_.find(connector_id);
-	if(it == std::end(connectors_))
-	{
-		return;
-	}
-	auto info = it->second;
-	lock.unlock();
-
 	if(info->on_msg)
 	{
 		info->on_msg(id, msg);

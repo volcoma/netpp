@@ -3,7 +3,7 @@ set(target_name asiopp)
 
 add_library(${target_name} ${libsrc})
 
-target_link_libraries(${target_name} PUBLIC netpp asio dl)
+target_link_libraries(${target_name} PUBLIC netpp asio)
 
 target_include_directories(${target_name}
     PUBLIC

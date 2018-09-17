@@ -4,7 +4,7 @@
 #include "tcp/server.h"
 
 #include <asio/io_context.hpp>
-#include <iostream>
+
 namespace net
 {
 using namespace asio;
@@ -13,13 +13,13 @@ namespace
 {
 auto& get_io_context()
 {
-	static auto context = std::make_unique<asio::io_context>();
+	static asio::io_context context;
 	return context;
 }
 
 auto& get_work()
 {
-	static auto work = asio::make_work_guard(*get_io_context());
+	static auto work = asio::make_work_guard(get_io_context());
 	return work;
 }
 
@@ -37,11 +37,11 @@ void create_service_threads(size_t workers = 1)
 		threads.emplace_back([]() {
 			try
 			{
-				get_io_context()->run();
+				get_io_context().run();
 			}
 			catch(std::exception& e)
 			{
-				std::cerr << "Exception: " << e.what() << "\n";
+				log() << "[NET] : Exception: " << e.what() << "\n";
 			}
 		});
 	}
@@ -57,7 +57,7 @@ void init_services(size_t workers)
 void deinit_services()
 {
 	get_work().reset();
-    get_io_context()->stop();
+	get_io_context().stop();
 
 	auto& threads = get_service_threads();
 
@@ -69,59 +69,56 @@ void deinit_services()
 		}
 	}
 	threads.clear();
-    get_io_context().reset();
 }
 connector_ptr create_tcp_server(uint16_t port)
 {
-	using connector_type = net::tcp::server;
-
-	auto& net_context = *get_io_context();
-	connector_type::protocol_endpoint endpoint(asio::ip::tcp::v6(), port);
-	return std::make_shared<connector_type>(net_context, endpoint);
+	using type = net::tcp::server;
+	auto& net_context = get_io_context();
+	type::protocol_endpoint endpoint(type::protocol::v6(), port);
+	return std::make_shared<type>(net_context, endpoint);
 }
 
 net::connector_ptr create_tcp_client(const std::string& host, uint16_t port)
 {
-	using connector_type = net::tcp::client;
-
-	auto& net_context = *get_io_context();
-	connector_type::protocol::resolver r(net_context);
+	using type = net::tcp::client;
+	auto& net_context = get_io_context();
+	type::protocol::resolver r(net_context);
 	auto res = r.resolve(host, std::to_string(port));
-	auto endpoint = res.begin()->endpoint();
-	return std::make_shared<connector_type>(net_context, endpoint);
+	auto endpoint = res->endpoint();
+	return std::make_shared<type>(net_context, endpoint);
 }
 
 connector_ptr create_tcp_ssl_server(uint16_t port, const std::string& cert_chain_file,
 									const std::string& private_key_file, const std::string& dh_file)
 {
-	using connector_type = net::tcp::ssl_server;
+	using type = net::tcp::ssl::server;
 
-	auto& net_context = *get_io_context();
-	connector_type::protocol_endpoint endpoint(asio::ip::tcp::v6(), port);
-	return std::make_shared<connector_type>(net_context, endpoint, cert_chain_file, private_key_file,
-											dh_file);
+	auto& net_context = get_io_context();
+	type::protocol_endpoint endpoint(type::protocol::v6(), port);
+	return std::make_shared<type>(net_context, endpoint, cert_chain_file, private_key_file, dh_file);
 }
 
 connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const std::string& cert_file)
 {
-	using connector_type = net::tcp::ssl_client;
+	using type = net::tcp::ssl::client;
 
-	auto& net_context = *get_io_context();
-	connector_type::protocol::resolver r(net_context);
+	auto& net_context = get_io_context();
+	type::protocol::resolver r(net_context);
 	auto res = r.resolve(host, std::to_string(port));
-	auto endpoint = res.begin()->endpoint();
-	return std::make_shared<connector_type>(net_context, endpoint, cert_file);
+	auto endpoint = res->endpoint();
+	return std::make_shared<type>(net_context, endpoint, cert_file);
 }
 
 net::connector_ptr create_tcp_local_server(const std::string& file)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
-	using connector_type = net::tcp::local_server;
-	auto& net_context = *get_io_context();
-	connector_type::protocol_endpoint endpoint(file);
-	return std::make_shared<connector_type>(net_context, endpoint);
+	using type = net::tcp::local_server;
+	auto& net_context = get_io_context();
+	type::protocol_endpoint endpoint(file);
+	return std::make_shared<type>(net_context, endpoint);
 #else
 	(void)file;
+	log() << "[NET] : Local(domain) sockets are not supported.\n";
 	return nullptr;
 #endif
 }
@@ -129,12 +126,13 @@ net::connector_ptr create_tcp_local_server(const std::string& file)
 net::connector_ptr create_tcp_local_client(const std::string& file)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
-	using connector_type = net::tcp::local_client;
-	auto& net_context = *get_io_context();
-	connector_type::protocol_endpoint endpoint(file);
-	return std::make_shared<connector_type>(net_context, endpoint);
+	using type = net::tcp::local_client;
+	auto& net_context = get_io_context();
+	type::protocol_endpoint endpoint(file);
+	return std::make_shared<type>(net_context, endpoint);
 #else
 	(void)file;
+	log() << "[NET] : Local(domain) sockets are not supported.\n";
 	return nullptr;
 #endif
 }
@@ -143,16 +141,16 @@ connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::st
 										  const std::string& private_key_file, const std::string& dh_file)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
-	using connector_type = net::tcp::ssl_local_server;
-	auto& net_context = *get_io_context();
-	connector_type::protocol_endpoint endpoint(file);
-	return std::make_shared<connector_type>(net_context, endpoint, cert_chain_file, private_key_file,
-											dh_file);
+	using type = net::tcp::ssl::local_server;
+	auto& net_context = get_io_context();
+	type::protocol_endpoint endpoint(file);
+	return std::make_shared<type>(net_context, endpoint, cert_chain_file, private_key_file, dh_file);
 #else
 	(void)file;
 	(void)cert_chain_file;
 	(void)private_key_file;
 	(void)dh_file;
+	log() << "[NET] : Local(domain) sockets are not supported.\n";
 	return nullptr;
 #endif
 }
@@ -160,13 +158,14 @@ connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::st
 connector_ptr create_tcp_ssl_local_client(const std::string& file, const std::string& cert_file)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
-	using connector_type = net::tcp::ssl_local_client;
-	auto& net_context = *get_io_context();
-	connector_type::protocol_endpoint endpoint(file);
-	return std::make_shared<connector_type>(net_context, endpoint, cert_file);
+	using type = net::tcp::ssl::local_client;
+	auto& net_context = get_io_context();
+	type::protocol_endpoint endpoint(file);
+	return std::make_shared<type>(net_context, endpoint, cert_file);
 #else
 	(void)file;
 	(void)cert_file;
+	log() << "[NET] : Local(domain) sockets are not supported.\n";
 	return nullptr;
 #endif
 }

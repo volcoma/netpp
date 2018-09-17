@@ -8,7 +8,11 @@ namespace net
 namespace tcp
 {
 using server = basic_server<asio::ip::tcp>;
-using ssl_server = basic_ssl_server<asio::ip::tcp>;
+
+namespace ssl
+{
+using server = basic_ssl_server<asio::ip::tcp>;
+}
 }
 }
 
@@ -19,7 +23,10 @@ namespace net
 namespace tcp
 {
 using local_server = basic_server<asio::local::stream_protocol>;
-using ssl_local_server = basic_ssl_server<asio::local::stream_protocol>;
+namespace ssl
+{
+using local_server = basic_ssl_server<asio::local::stream_protocol>;
+}
 }
 } // namespace net
 #endif

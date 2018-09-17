@@ -1,140 +1,102 @@
 #pragma once
-#include "../connector.h"
 #include "connection.hpp"
 
+#include <netpp/connector.h>
+
+#include <asio/io_context.hpp>
 #include <asio/basic_socket_acceptor.hpp>
-#include <asio/basic_stream_socket.hpp>
 
 namespace net
 {
 namespace tcp
 {
 template <typename protocol_type>
-class basic_server : public asio_connector, public std::enable_shared_from_this<basic_server<protocol_type>>
+class basic_server : public connector, public std::enable_shared_from_this<basic_server<protocol_type>>
 {
 public:
-    using protocol = protocol_type;
-    using weak_ptr = std::weak_ptr<basic_server<protocol_type>>;
-    using protocol_acceptor = asio::basic_socket_acceptor<protocol_type>;
-    using protocol_endpoint = typename protocol_type::endpoint;
-    using protocol_socket = typename protocol_type::socket;
+	using protocol = protocol_type;
+	using weak_ptr = std::weak_ptr<basic_server<protocol_type>>;
+	using protocol_acceptor = asio::basic_socket_acceptor<protocol_type>;
+	using protocol_endpoint = typename protocol_type::endpoint;
+	using protocol_socket = typename protocol_type::socket;
 
-    basic_server(asio::io_context& io_context, const protocol_endpoint& endpoint)
-        : asio_connector(io_context)
-        , acceptor_(io_context)
-    {
-        acceptor_.open(endpoint.protocol());
-        acceptor_.set_option(asio::socket_base::reuse_address(true));
-        acceptor_.bind(endpoint);
-        acceptor_.listen();
-    }
+	basic_server(asio::io_context& io_context, const protocol_endpoint& endpoint)
+        : io_context_(io_context)
+		, acceptor_(io_context)
+	{
+		acceptor_.open(endpoint.protocol());
+		acceptor_.set_option(asio::socket_base::reuse_address(true));
+		acceptor_.bind(endpoint);
+		acceptor_.listen();
+	}
 
-    void start() override
-    {
-        using socket_type = protocol_socket;
-        auto socket = std::make_shared<socket_type>(io_context_);
+	void start() override
+	{
+		auto socket = std::make_shared<protocol_socket>(io_context_);
 
-        auto weak_this = weak_ptr(this->shared_from_this());
-        auto on_connection_established = [weak_this, socket]() {
-            auto shared_this = weak_this.lock();
-            if(!shared_this)
-            {
-                return;
-            }
-            shared_this->on_handshake_complete(socket);
-        };
+		auto weak_this = weak_ptr(this->shared_from_this());
+		auto on_connection_established = [weak_this, socket]() {
+			auto shared_this = weak_this.lock();
+			if(!shared_this)
+			{
+				return;
+			}
+			shared_this->on_handshake_complete(socket);
+		};
 
-        async_accept(socket, std::move(on_connection_established));
-    }
+		async_accept(socket, std::move(on_connection_established));
+	}
 
-    template <typename socket_type, typename F>
-    void async_accept(std::shared_ptr<socket_type> socket, F f)
-    {
-        sout() << "accepting connections on " << acceptor_.local_endpoint() << "..."
-               << "\n";
+	template <typename socket_type, typename F>
+	void async_accept(socket_type& socket, F f)
+	{
+		log() << "[NET] : Accepting connections on " << acceptor_.local_endpoint() << "...\n";
 
-        auto weak_this = weak_ptr(this->shared_from_this());
-        acceptor_.async_accept(socket->lowest_layer(),
-                               [ weak_this, socket, on_connection_established =
-                                                        std::move(f) ](const asio::error_code& ec) mutable {
-                                   if(ec)
-                                   {
-                                       sout() << "accept error: " << ec.message() << "\n";
+		auto weak_this = weak_ptr(this->shared_from_this());
+		auto& lowest_layer = socket->lowest_layer();
+		acceptor_.async_accept(
+			lowest_layer, [weak_this, socket = std::move(socket),
+						   on_connection_established = std::move(f)](const asio::error_code& ec) mutable {
+				if(ec)
+				{
+					log() << "[NET] : Accept error: " << ec.message() << "\n";
 
-                                       // We need to close the socket used in the previous connection attempt
-                                       // before starting a new one.
-                                       socket.reset();
-                                   }
-                                   // Otherwise we have successfully established a connection.
-                                   else
-                                   {
-                                       on_connection_established();
-                                   }
-                                   auto shared_this = weak_this.lock();
-                                   if(!shared_this)
-                                   {
-                                       return;
-                                   }
-                                   // Try again.
-                                   shared_this->start();
-                               });
-    }
+					// We need to close the socket used in the previous connection attempt
+					// before starting a new one.
+					socket.reset();
+				}
+				// Otherwise we have successfully established a connection.
+				else
+				{
+					on_connection_established();
+				}
 
-    template <typename socket_type>
-    void on_handshake_complete(std::shared_ptr<socket_type> socket)
-    {
-        sout() << "handshake " << socket->lowest_layer().local_endpoint() << " -> "
-               << socket->lowest_layer().remote_endpoint() << " completed"
-               << "\n";
+				auto shared_this = weak_this.lock();
+				if(!shared_this)
+				{
+					return;
+				}
+				// Start accepting new connections
+				shared_this->start();
+			});
+	}
 
-        auto session = std::make_shared<async_connection<socket_type>>(socket, io_context_);
-        auto weak_this = weak_ptr(this->shared_from_this());
+	template <typename socket_type>
+	void on_handshake_complete(std::shared_ptr<socket_type> socket)
+	{
+		log() << "[NET] : Handshake server::" << socket->lowest_layer().local_endpoint()
+			  << " -> client::" << socket->lowest_layer().remote_endpoint() << " completed.\n";
 
-        session->on_connect = [weak_this](connection::id_t id) mutable {
-            auto shared_this = weak_this.lock();
-            if(!shared_this)
-            {
-                return;
-            }
-            if(shared_this->on_connect)
-            {
-                shared_this->on_connect(id);
-            }
-        };
-
-        session->on_disconnect = [weak_this](connection::id_t id, const error_code& ec) mutable {
-
-            auto shared_this = weak_this.lock();
-            if(!shared_this)
-            {
-                return;
-            }
-            shared_this->remove(id);
-            if(shared_this->on_disconnect)
-            {
-                shared_this->on_disconnect(id, ec);
-            }
-        };
-
-        session->on_msg = [weak_this](connection::id_t id, const byte_buffer& msg) mutable {
-            auto shared_this = weak_this.lock();
-            if(!shared_this)
-            {
-                return;
-            }
-            if(shared_this->on_msg)
-            {
-                shared_this->on_msg(id, msg);
-            }
-        };
-
-        add(session);
-
-        session->start();
-    }
+		auto session = std::make_shared<async_connection<socket_type>>(socket, io_context_);
+		if(on_connection_ready)
+		{
+			on_connection_ready(session);
+		}
+	}
 
 protected:
-    protocol_acceptor acceptor_;
+	protocol_acceptor acceptor_;
+    asio::io_context& io_context_;
 };
 }
 } // namespace net

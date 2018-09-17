@@ -56,18 +56,17 @@ namespace tcp
 // sent, the output actor again waits for the output queue to become non-empty.
 
 template <typename socket_type>
-class async_connection : public connection,
-						 public std::enable_shared_from_this<async_connection<socket_type>>
+class async_connection : public connection, public std::enable_shared_from_this<async_connection<socket_type>>
 {
 public:
-	async_connection(std::shared_ptr<socket_type> socket, asio::io_context& context);
+	async_connection(const std::shared_ptr<socket_type>& socket, asio::io_context& context);
 
 	void start() override;
 	void stop(const error_code& ec) override;
 
 private:
 	bool stopped() const;
-	void send_msg(byte_buffer&& msg) override;
+	void send_msg(byte_buffer&& msg, data_channel channel) override;
 	void start_read();
 	void handle_read(const error_code& ec, std::size_t n);
 	void await_output();
@@ -76,7 +75,7 @@ private:
 
 	mutable std::mutex guard_;
 
-	std::deque<byte_buffer> output_queue_;
+	std::deque<std::vector<byte_buffer>> output_queue_;
 
 	asio::io_context::strand strand_;
 
@@ -87,17 +86,19 @@ private:
 };
 
 template <typename socket_type>
-async_connection<socket_type>::async_connection(std::shared_ptr<socket_type> socket,
-															  asio::io_context& context)
+async_connection<socket_type>::async_connection(const std::shared_ptr<socket_type>& socket,
+												asio::io_context& context)
 	: strand_(context)
 	, socket_(socket)
 	, non_empty_output_queue_(context)
 {
-
+	socket_->lowest_layer().non_blocking(true);
 	// The non_empty_output_queue_ steady_timer is set to the maximum time
 	// point whenever the output queue is empty. This ensures that the output
 	// actor stays asleep until a message is put into the queue.
 	non_empty_output_queue_.expires_at(asio::steady_timer::time_point::max());
+
+	msg_builder_ = std::make_unique<multi_buffer_builder>();
 }
 
 template <typename socket_type>
@@ -106,23 +107,24 @@ void async_connection<socket_type>::start()
 	connected = true;
 	start_read();
 	await_output();
-	on_connect(id);
 }
 template <typename socket_type>
 void async_connection<socket_type>::stop(const error_code& ec)
 {
-    {
-        std::lock_guard<std::mutex> lock(guard_);
-        non_empty_output_queue_.cancel();
-        std::error_code ignore;
-        socket_->lowest_layer().shutdown(asio::socket_base::shutdown_both, ignore);
-        socket_->lowest_layer().close(ignore);
-    }
+	{
+		std::lock_guard<std::mutex> lock(guard_);
+		non_empty_output_queue_.cancel();
+		std::error_code ignore;
+		socket_->lowest_layer().shutdown(asio::socket_base::shutdown_both, ignore);
+		socket_->lowest_layer().close(ignore);
+	}
 
 	if(connected.exchange(false))
 	{
-		on_disconnect(id,
-					  ec ? ec : asio::error::make_error_code(asio::error::connection_aborted));
+		for(const auto& callback : on_disconnect)
+		{
+			callback(id, ec ? ec : asio::error::make_error_code(asio::error::connection_aborted));
+		}
 	}
 }
 template <typename socket_type>
@@ -133,12 +135,12 @@ bool async_connection<socket_type>::stopped() const
 }
 
 template <typename socket_type>
-void async_connection<socket_type>::send_msg(byte_buffer&& msg)
+void async_connection<socket_type>::send_msg(byte_buffer&& msg, data_channel channel)
 {
-	msg_builder_->build(msg);
+	auto buffers = msg_builder_->build(std::move(msg), channel);
 
 	std::lock_guard<std::mutex> lock(guard_);
-	output_queue_.emplace_back(std::move(msg));
+	output_queue_.emplace_back(std::move(buffers));
 
 	// Signal that the output queue contains messages. Modifying the expiry
 	// will wake the output actor, if it is waiting on the timer.
@@ -151,8 +153,11 @@ void async_connection<socket_type>::start_read()
 
 	// Start an asynchronous operation to read a certain number of bytes.
 	auto operation = msg_builder_->get_next_operation();
-    auto& work_buffer = msg_builder_->get_work_buffer();
-	asio::async_read(*socket_, asio::dynamic_buffer(work_buffer), asio::transfer_exactly(operation.bytes),
+	auto& work_buffer = msg_builder_->get_work_buffer();
+	auto offset = work_buffer.size();
+	work_buffer.resize(offset + operation.bytes);
+	asio::async_read(*socket_, asio::buffer(work_buffer.data() + offset, operation.bytes),
+					 asio::transfer_exactly(operation.bytes),
 					 strand_.wrap(std::bind(&async_connection::handle_read, this->shared_from_this(),
 											std::placeholders::_1, std::placeholders::_2)));
 }
@@ -171,7 +176,7 @@ void async_connection<socket_type>::handle_read(const error_code& ec, std::size_
 			bool is_ready = msg_builder_->process_operation(size);
 			if(is_ready)
 			{
-    			// Extract the message from the builder.
+				// Extract the message from the builder.
 				return msg_builder_->extract_msg();
 			}
 
@@ -226,8 +231,16 @@ void async_connection<socket_type>::start_write()
 {
 	std::lock_guard<std::mutex> lock(guard_);
 
-	// Start an asynchronous operation to send a message.
-	asio::async_write(*socket_, asio::buffer(output_queue_.front()),
+	const auto& to_wire = output_queue_.front();
+	std::vector<asio::const_buffer> buffers;
+	buffers.reserve(to_wire.size());
+	for(const auto& buf : to_wire)
+	{
+		buffers.emplace_back(asio::buffer(buf));
+	}
+
+	// Start an asynchronous operation to send all messages.
+	asio::async_write(*socket_, buffers,
 					  strand_.wrap(std::bind(&async_connection::handle_write, this->shared_from_this(),
 											 std::placeholders::_1)));
 }

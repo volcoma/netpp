@@ -19,25 +19,12 @@ struct connector
 	using on_msg_t = std::function<void(connection::id_t, const byte_buffer&)>;
 	using on_connect_t = std::function<void(connection::id_t)>;
 	using on_disconnect_t = std::function<void(connection::id_t, const std::error_code&)>;
-
+	using on_connection_ready_t = std::function<void(connection_ptr)>;
 	connector();
 	virtual ~connector() = default;
 	virtual void start() = 0;
 
-	void stop(const std::error_code& ec);
-	void stop(connection::id_t id, const std::error_code& ec);
-	void send_msg(connection::id_t id, byte_buffer&& msg);
-
-	void add(const connection_ptr& session);
-	void remove(connection::id_t id);
-
-	on_connect_t on_connect;
-	on_disconnect_t on_disconnect;
-	on_msg_t on_msg;
-
-	std::mutex guard_;
-	std::map<connection::id_t, connection_ptr> connections_;
-
+	on_connection_ready_t on_connection_ready;
 	const id_t id;
 };
 

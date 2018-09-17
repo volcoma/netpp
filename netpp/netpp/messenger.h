@@ -23,25 +23,34 @@ public:
 	void disconnect(connection::id_t id);
 	void remove_connector(connector::id_t id);
 
-	size_t get_connections_count() const;
 	void stop();
+
+	bool empty() const;
 
 private:
 	messenger() = default;
-	void on_connect(connector::id_t connector_id, connection::id_t id);
-	void on_disconnect(connector::id_t connector_id, connection::id_t id, error_code ec);
-	void on_msg(connector::id_t connector_id, connection::id_t id, const byte_buffer& msg);
 
-	struct connector_info
+	struct user_info
 	{
-		connector_ptr connector;
 		on_msg_t on_msg;
 		on_connect_t on_connect;
 		on_disconnect_t on_disconnect;
 	};
+	using user_info_ptr = std::shared_ptr<user_info>;
+	using user_info_weak_ptr = std::weak_ptr<user_info>;
+
+	struct connection_info
+	{
+		connection_ptr connection;
+	};
+	void on_new_connection(connection_ptr& connection, const user_info_ptr& info);
+
+	void on_disconnect(connection::id_t id, error_code ec, const user_info_ptr& info);
+	void on_msg(connection::id_t id, const byte_buffer& msg, const user_info_ptr& info);
+
 	mutable std::mutex guard_;
-	std::map<connector::id_t, std::shared_ptr<connector_info>> connectors_;
-	std::map<connection::id_t, connector::id_t> connections_;
+	std::map<connector::id_t, connector_ptr> connectors_;
+	std::map<connection::id_t, connection_info> connections_;
 };
 
 void deinit_messengers();
