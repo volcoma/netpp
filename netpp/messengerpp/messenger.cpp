@@ -1,5 +1,5 @@
 #include "messenger.h"
-#include <iostream>
+
 namespace net
 {
 

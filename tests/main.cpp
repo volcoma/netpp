@@ -4,7 +4,7 @@
 
 #include <asiopp/service.h>
 #include <netpp/logging.h>
-#include <netpp/messenger.h>
+#include <messengerpp/messenger.h>
 
 using namespace std::chrono_literals;
 
@@ -30,7 +30,7 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
 							   auto net = net::get_network();
 							   if(net)
 							   {
-								   net->send_msg(id, to_buffer("echoasss"));
+								   net->send_msg(id, to_buffer("echo"));
 							   }
 						   },
 						   [](net::connection::id_t id, const net::error_code& ec) {
@@ -57,7 +57,7 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
 			net::log() << "server client " << id << " disconnected. reason : " << ec.message() << "\n";
 		},
 		[](net::connection::id_t id, auto&& msg) {
-			net::log() << "server on_msg: " << from_buffer(msg) << "\n";
+			net::log() << "server client " << id << " on_msg: " << from_buffer(msg) << "\n";
 			std::this_thread::sleep_for(16ms);
 			auto net = net::get_network();
 			if(net)
@@ -178,44 +178,44 @@ int main(int argc, char* argv[])
 		}
 
         // TCP SSL SOCKET TEST
-//		{
-//			std::vector<net::connector_ptr> clients;
-//			if(is_client)
-//			{
-//				for(int i = 0; i < count; ++i)
-//				{
-//					clients.emplace_back();
-//					auto& client = clients.back();
-//					client = net::create_tcp_ssl_client(host, port, cert_file);
-//				}
-//			}
-//			net::connector_ptr server;
-//			if(is_server)
-//			{
-//				server = net::create_tcp_ssl_server(port, cert_chain_file, private_key_file, dh_file);
-//			}
-//			test(std::move(server), std::move(clients));
-//		}
+		{
+			std::vector<net::connector_ptr> clients;
+			if(is_client)
+			{
+				for(int i = 0; i < count; ++i)
+				{
+					clients.emplace_back();
+					auto& client = clients.back();
+					client = net::create_tcp_ssl_client(host, port, cert_file);
+				}
+			}
+			net::connector_ptr server;
+			if(is_server)
+			{
+				server = net::create_tcp_ssl_server(port, cert_chain_file, private_key_file, dh_file);
+			}
+			test(std::move(server), std::move(clients));
+		}
 
-//        // TCP SSL DOMAIN SOCKET TEST
-//		{
-//			std::vector<net::connector_ptr> clients;
-//			if(is_client)
-//			{
-//				for(int i = 0; i < count; ++i)
-//				{
-//					clients.emplace_back();
-//					auto& client = clients.back();
-//					client = net::create_tcp_ssl_local_client(domain, cert_file);
-//				}
-//			}
-//			net::connector_ptr server;
-//			if(is_server)
-//			{
-//				server = net::create_tcp_ssl_local_server(domain, cert_chain_file, private_key_file, dh_file);
-//			}
-//			test(std::move(server), std::move(clients));
-//		}
+        // TCP SSL DOMAIN SOCKET TEST
+		{
+			std::vector<net::connector_ptr> clients;
+			if(is_client)
+			{
+				for(int i = 0; i < count; ++i)
+				{
+					clients.emplace_back();
+					auto& client = clients.back();
+					client = net::create_tcp_ssl_local_client(domain, cert_file);
+				}
+			}
+			net::connector_ptr server;
+			if(is_server)
+			{
+				server = net::create_tcp_ssl_local_server(domain, cert_chain_file, private_key_file, dh_file);
+			}
+			test(std::move(server), std::move(clients));
+		}
 	}
 	catch(std::exception& e)
 	{

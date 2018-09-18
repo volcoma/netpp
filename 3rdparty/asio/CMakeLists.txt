@@ -1,31 +1,31 @@
-#set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/asio")
-# Find ASIO (the standalone version, not Boost) If asio isn't installed in
-# a standard directory, add the correct directory to CMAKE_PREFIX_PATH (see
-# the main README for more information).
+# Find ASIO (the standalone version) If asio isn't installed in
+# a standard directory, add the correct directory to CMAKE_PREFIX_PATH
 find_path(ASIO_DIR NAMES asio.hpp)
-#set(ASIO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/asio/include)
 # Hide this variable from CMake GUIs and `cmake -L`
 set_property(CACHE ASIO_DIR PROPERTY ADVANCED TRUE)
 if (NOT ASIO_DIR)
-    message(SEND_ERROR
+    message(FATAL_ERROR
 "
 ASIO header (asio.hpp) could not be found.
 ASIO is used for networking.
 On Linux, you should install it using your package manager.
-On Windows, please refer to the main README.")
+On Windows, please add the correct directory to CMAKE_PREFIX_PATH
+e.g set(CMAKE_PREFIX_PATH \$\{CMAKE_PREFIX_PATH} \$\{CMAKE_CURRENT_SOURCE_DIR}/3rdparty/asio/asio)")
 endif()
 
-set(CMAKE_THREAD_PREFER_PTHREAD 1)
-find_package(Threads REQUIRED)
-
+message(STATUS ${ASIO_DIR})
 add_library(asio INTERFACE)
+
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
+target_link_libraries(asio INTERFACE Threads::Threads)
+
 # Ubuntu 14.04 packages asio 1.10.1 and clang 3.4.1.
 # In this environment, asio stand alone (set ASIO_STANDALONE)
 # does not correctly detect that the stl has CHRONO support (c++11).
 # Force the use of std::chrono by setting ASIO_HAS_STD_CHRONO
-message(STATUS ${ASIO_DIR})
 target_include_directories(asio SYSTEM INTERFACE "${ASIO_DIR}")
-target_link_libraries(asio INTERFACE "${CMAKE_THREAD_LIBS_INIT}")
 if(WIN32)
 	target_link_libraries(asio INTERFACE wsock32 ws2_32)
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "connector.h"
+#include <netpp/connector.h>
 #include <memory>
 #include <mutex>
 namespace net

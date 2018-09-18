@@ -1,6 +1,7 @@
 #pragma once
-#include <asio/ip/udp.hpp>
 #include <netpp/connection.h>
+
+#include <asio/ip/udp.hpp>
 #include <asio/io_service.hpp>
 namespace net
 {

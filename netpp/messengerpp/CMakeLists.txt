@@ -1,8 +1,9 @@
 file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
-set(target_name netpp)
+set(target_name messengerpp)
 
 add_library(${target_name} ${libsrc})
 
+target_link_libraries(${target_name} netpp)
 target_include_directories(${target_name}
     PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/..
