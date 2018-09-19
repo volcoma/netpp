@@ -19,6 +19,7 @@ auto make_socket(asio::io_service& io_context)
         old_version_workaround(old_version_workaround& sock)
             : protocol_socket(std::move(static_cast<protocol_socket&>(sock)))
         {}
+
     };
     using protocol_socket_type = old_version_workaround;
 #else

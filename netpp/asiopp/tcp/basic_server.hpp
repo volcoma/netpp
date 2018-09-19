@@ -1,5 +1,5 @@
 #pragma once
-#include "../connection.hpp"
+#include "connection.hpp"
 
 #include <netpp/connector.h>
 
@@ -92,7 +92,7 @@ public:
 		log() << "[NET] : Handshake server::" << socket->lowest_layer().local_endpoint()
 			  << " -> client::" << socket->lowest_layer().remote_endpoint() << " completed.\n";
 
-		auto session = std::make_shared<net::detail::async_connection<socket_type>>(socket, io_context_);
+		auto session = std::make_shared<async_connection<socket_type>>(socket, io_context_);
 		if(on_connection_ready)
 		{
 			on_connection_ready(session);

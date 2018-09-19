@@ -11,10 +11,12 @@
 #include <asio/strand.hpp>
 #include <asio/write.hpp>
 #include <deque>
+#include <chrono>
+#include <thread>
 
 namespace net
 {
-namespace detail
+namespace udp
 {
 //----------------------------------------------------------------------
 // The input actor reads messages from the socket.
@@ -67,6 +69,7 @@ public:
 private:
 	bool stopped() const;
 	void send_msg(byte_buffer&& msg, data_channel channel) override;
+
 	void start_read();
 	void handle_read(const error_code& ec, std::size_t n);
 	void await_output();
@@ -99,7 +102,7 @@ async_connection<socket_type>::async_connection(const std::shared_ptr<socket_typ
 	// actor stays asleep until a message is put into the queue.
 	non_empty_output_queue_.expires_at(asio::steady_timer::time_point::max());
 
-	msg_builder_ = std::make_unique<multi_buffer_builder>();
+	msg_builder_ = std::make_unique<single_buffer_builder>();
 }
 
 template <typename socket_type>
@@ -135,66 +138,105 @@ bool async_connection<socket_type>::stopped() const
 template <typename socket_type>
 void async_connection<socket_type>::send_msg(byte_buffer&& msg, data_channel channel)
 {
+    std::lock_guard<std::mutex> lock(guard_);
 	auto buffers = msg_builder_->build(std::move(msg), channel);
 
-	std::lock_guard<std::mutex> lock(guard_);
 	output_queue_.emplace_back(std::move(buffers));
 
 	// Signal that the output queue contains messages. Modifying the expiry
 	// will wake the output actor, if it is waiting on the timer.
 	non_empty_output_queue_.expires_at(asio::steady_timer::time_point::min());
 }
+
 template <typename socket_type>
 void async_connection<socket_type>::start_read()
 {
-	std::lock_guard<std::mutex> lock(guard_);
-
 	// Start an asynchronous operation to read a certain number of bytes.
-	auto operation = msg_builder_->get_next_operation();
-	auto& work_buffer = msg_builder_->get_work_buffer();
-	auto offset = work_buffer.size();
-	work_buffer.resize(offset + operation.bytes);
-	asio::async_read(*socket_, asio::buffer(work_buffer.data() + offset, operation.bytes),
-					 asio::transfer_exactly(operation.bytes),
+    socket_->async_receive(asio::null_buffers(), asio::socket_base::message_peek,
 					 strand_.wrap(std::bind(&async_connection::handle_read, this->shared_from_this(),
 											std::placeholders::_1, std::placeholders::_2)));
 }
 template <typename socket_type>
 void async_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
 {
-	if(stopped())
+    if(stopped())
 	{
 		return;
 	}
 
 	if(!ec)
 	{
-		auto extract_msg = [&]() -> byte_buffer {
-			std::unique_lock<std::mutex> lock(guard_);
-			bool is_ready = msg_builder_->process_operation(size);
-			if(is_ready)
-			{
-				// Extract the message from the builder.
-				return msg_builder_->extract_msg();
-			}
+        using namespace std::chrono_literals;
+        std::unique_lock<std::mutex> lock(guard_);
 
-			return {};
-		};
+        while(true)
+        {
+            if(!socket_->can_read())
+            {
+                std::this_thread::yield();
+                break;
+            }
+            auto available = socket_->lowest_layer().available();
+            if(available == 0)
+            {
+                std::this_thread::yield();
+                break;
+            }
 
-		auto msg = extract_msg();
+            byte_buffer buf(available);
+            if(socket_->receive(asio::buffer(buf)) == 0)
+            {
+                std::this_thread::yield();
+                break;
+            }
+
+            auto processed = 0;
+            while(processed < available)
+            {
+                // Start an asynchronous operation to read a certain number of bytes.
+                auto operation = msg_builder_->get_next_operation();
+
+                auto left = available - processed;
+                if(left < operation.bytes)
+                {
+                    break;
+                }
+
+                auto& work_buffer = msg_builder_->get_work_buffer();
+                auto offset = work_buffer.size();
+                work_buffer.resize(offset + operation.bytes);
+                std::memcpy(work_buffer.data(), buf.data() + processed, work_buffer.size());
+
+
+                bool is_ready = msg_builder_->process_operation(operation.bytes);
+                if(is_ready)
+                {
+                    // Extract the message from the builder.
+                    auto msg = msg_builder_->extract_msg();
+                    if(on_msg)
+                    {
+                        lock.unlock();
+
+                        on_msg(id, msg);
+
+                        lock.lock();
+                    }
+                }
+
+                processed += operation.bytes;
+            }
+
+        }
 
 		start_read();
-
-		if(!msg.empty())
-		{
-			on_msg(id, msg);
-		}
 	}
 	else
 	{
 		stop(ec);
 	}
+
 }
+
 template <typename socket_type>
 void async_connection<socket_type>::await_output()
 {
@@ -228,7 +270,6 @@ template <typename socket_type>
 void async_connection<socket_type>::start_write()
 {
 	std::lock_guard<std::mutex> lock(guard_);
-
 	const auto& to_wire = output_queue_.front();
 	std::vector<asio::const_buffer> buffers;
 	buffers.reserve(to_wire.size());
