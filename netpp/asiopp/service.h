@@ -28,4 +28,6 @@ net::connector_ptr create_tcp_ssl_local_server(const std::string& file, const st
 
 net::connector_ptr create_tcp_ssl_local_client(const std::string& file, const std::string& cert_file);
 
+net::connector_ptr create_udp_server(uint16_t port);
+net::connector_ptr create_udp_client(const std::string& host, uint16_t port);
 } // namespace net

@@ -14,7 +14,7 @@
 
 namespace net
 {
-namespace tcp
+namespace detail
 {
 //----------------------------------------------------------------------
 // The input actor reads messages from the socket.

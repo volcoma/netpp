@@ -3,6 +3,9 @@
 #include "tcp/client.h"
 #include "tcp/server.h"
 
+#include "udp/client.h"
+#include "udp/server.h"
+
 #include <asio/io_service.hpp>
 
 namespace net
@@ -170,5 +173,21 @@ connector_ptr create_tcp_ssl_local_client(const std::string& file, const std::st
 	return nullptr;
 #endif
 }
+connector_ptr create_udp_server(uint16_t port)
+{
+	using type = net::udp::server;
+	auto& net_context = get_io_context();
+	type::protocol_endpoint endpoint(type::protocol::v6(), port);
+	return std::make_shared<type>(net_context, endpoint);
+}
 
+net::connector_ptr create_udp_client(const std::string& host, uint16_t port)
+{
+	using type = net::udp::client;
+	auto& net_context = get_io_context();
+	type::protocol::resolver r(net_context);
+	auto res = r.resolve(type::protocol::resolver::query(host, std::to_string(port)));
+	auto endpoint = res->endpoint();
+	return std::make_shared<type>(net_context, endpoint);
+}
 } // namespace net

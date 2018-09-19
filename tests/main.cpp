@@ -136,7 +136,25 @@ int main(int argc, char* argv[])
 
 	try
 	{
-
+        // UDP SOCKET TEST
+		{
+			std::vector<net::connector_ptr> clients;
+			if(is_client)
+			{
+				for(int i = 0; i < count; ++i)
+				{
+					clients.emplace_back();
+					auto& client = clients.back();
+					client = net::create_udp_client(host, port);
+				}
+			}
+			net::connector_ptr server;
+			if(is_server)
+			{
+				server = net::create_udp_server(port);
+			}
+			test(std::move(server), std::move(clients));
+		}
         // TCP SOCKET TEST
 		{
 			std::vector<net::connector_ptr> clients;

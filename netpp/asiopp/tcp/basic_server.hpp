@@ -1,5 +1,5 @@
 #pragma once
-#include "connection.hpp"
+#include "../connection.hpp"
 
 #include <netpp/connector.h>
 
@@ -20,17 +20,23 @@ public:
 	using protocol_socket = typename protocol_type::socket;
 
 	basic_server(asio::io_service& io_context, const protocol_endpoint& endpoint)
-        : io_context_(io_context)
+		: io_context_(io_context)
 		, acceptor_(io_context)
+        , endpoint_(endpoint)
 	{
-		acceptor_.open(endpoint.protocol());
-		acceptor_.set_option(asio::socket_base::reuse_address(true));
-		acceptor_.bind(endpoint);
-		acceptor_.listen();
+
 	}
 
 	void start() override
 	{
+        if(!acceptor_.is_open())
+        {
+            acceptor_.open(endpoint_.protocol());
+            acceptor_.set_option(asio::socket_base::reuse_address(true));
+            acceptor_.bind(endpoint_);
+            acceptor_.listen();
+        }
+
 		auto socket = std::make_shared<protocol_socket>(io_context_);
 
 		auto weak_this = weak_ptr(this->shared_from_this());
@@ -86,7 +92,7 @@ public:
 		log() << "[NET] : Handshake server::" << socket->lowest_layer().local_endpoint()
 			  << " -> client::" << socket->lowest_layer().remote_endpoint() << " completed.\n";
 
-		auto session = std::make_shared<async_connection<socket_type>>(socket, io_context_);
+		auto session = std::make_shared<net::detail::async_connection<socket_type>>(socket, io_context_);
 		if(on_connection_ready)
 		{
 			on_connection_ready(session);
@@ -94,8 +100,10 @@ public:
 	}
 
 protected:
+
 	protocol_acceptor acceptor_;
-    asio::io_service& io_context_;
+    protocol_endpoint endpoint_;
+	asio::io_service& io_context_;
 };
 }
 } // namespace net
