@@ -38,85 +38,86 @@ public:
 	using protocol_acceptor = typename base_type::protocol_acceptor;
 	using protocol_socket = typename base_type::protocol_socket;
 
-    //-----------------------------------------------------------------------------
-    /// Constructor of ssl client accepting a connect endpoint and certificates.
-    //-----------------------------------------------------------------------------
-    basic_ssl_client(asio::io_service& io_context, const protocol_endpoint& endpoint,
+	//-----------------------------------------------------------------------------
+	/// Constructor of ssl client accepting a connect endpoint and certificates.
+	//-----------------------------------------------------------------------------
+	basic_ssl_client(asio::io_service& io_context, const protocol_endpoint& endpoint,
 					 const std::string& cert_file);
 
-    //-----------------------------------------------------------------------------
-    /// Starts the client attempting to connect to an endpoint.
-    /// After a successful connect, a ssl handshake is performed to validate
-    /// certificates and keys
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
+	/// Starts the client attempting to connect to an endpoint.
+	/// After a successful connect, a ssl handshake is performed to validate
+	/// certificates and keys
+	//-----------------------------------------------------------------------------
 	void start() override;
 
 protected:
-    /// The internal ssl context
+	/// The internal ssl context
 	asio::ssl::context context_;
 };
 
-template<typename protocol_type>
-inline basic_ssl_client<protocol_type>::basic_ssl_client(asio::io_service& io_context, const protocol_endpoint& endpoint, const std::string& cert_file)
-    : base_type(io_context, endpoint)
-    , context_(asio::ssl::context::sslv23)
+template <typename protocol_type>
+inline basic_ssl_client<protocol_type>::basic_ssl_client(asio::io_service& io_context,
+														 const protocol_endpoint& endpoint,
+														 const std::string& cert_file)
+	: base_type(io_context, endpoint)
+	, context_(asio::ssl::context::sslv23)
 {
-    context_.load_verify_file(cert_file);
+	context_.load_verify_file(cert_file);
 }
 
-template<typename protocol_type>
+template <typename protocol_type>
 inline void basic_ssl_client<protocol_type>::start()
 {
-    auto socket = compatibility::make_socket<protocol_socket>(this->io_context_);
-    auto weak_this = weak_ptr(this->shared_from_this());
+	auto socket = compatibility::make_socket<protocol_socket>(this->io_context_);
+	auto weak_this = weak_ptr(this->shared_from_this());
 
-    auto on_connection_established = [weak_this, this, socket = socket.get()]() mutable
-    {
-        auto shared_this = weak_this.lock();
-        if(!shared_this)
-        {
-            return;
-        }
-        auto ssl_socket = compatibility::make_ssl_socket(std::move(*socket), context_);
-        ssl_socket->set_verify_mode(asio::ssl::verify_peer);
-        ssl_socket->set_verify_callback(detail::verify_certificate);
+	auto on_connection_established = [weak_this, this, socket = socket.get()]() mutable
+	{
+		auto shared_this = weak_this.lock();
+		if(!shared_this)
+		{
+			return;
+		}
+		auto ssl_socket = compatibility::make_ssl_socket(std::move(*socket), context_);
+		ssl_socket->set_verify_mode(asio::ssl::verify_peer);
+		ssl_socket->set_verify_callback(detail::verify_certificate);
 
-        // Start the asynchronous handshake operation.
-        ssl_socket->async_handshake(asio::ssl::stream_base::client,
-                                    [weak_this, ssl_socket](const error_code& ec) mutable {
-            if(ec)
-            {
-                log() << "handshake error: " << ec.message();
+		// Start the asynchronous handshake operation.
+		ssl_socket->async_handshake(asio::ssl::stream_base::client,
+									[weak_this, ssl_socket](const error_code& ec) mutable {
+										if(ec)
+										{
+											log() << "handshake error: " << ec.message();
 
-                auto shared_this = weak_this.lock();
-                if(!shared_this)
-                {
-                    return;
-                }
+											auto shared_this = weak_this.lock();
+											if(!shared_this)
+											{
+												return;
+											}
 
-                // We need to close the socket used in the previous connection
-                // attempt before starting a new one.
-                ssl_socket.reset();
-                // Try again.
-                shared_this->start();
-            }
+											// We need to close the socket used in the previous connection
+											// attempt before starting a new one.
+											ssl_socket.reset();
+											// Try again.
+											shared_this->start();
+										}
 
-            // Otherwise we have successfully established a connection.
-            else
-            {
-                auto shared_this = weak_this.lock();
-                if(!shared_this)
-                {
-                    return;
-                }
+										// Otherwise we have successfully established a connection.
+										else
+										{
+											auto shared_this = weak_this.lock();
+											if(!shared_this)
+											{
+												return;
+											}
 
-                shared_this->on_handshake_complete(ssl_socket);
-            }
-        });
-    };
+											shared_this->on_handshake_complete(ssl_socket);
+										}
+									});
+	};
 
-    this->async_connect(socket, std::move(on_connection_established));
+	this->async_connect(socket, std::move(on_connection_established));
 }
-
 }
 } // namespace net

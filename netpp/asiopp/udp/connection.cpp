@@ -7,24 +7,23 @@ namespace udp
 
 void udp_connection::set_endpoint(udp::endpoint endpoint, bool can_read, bool can_write)
 {
-    endpoint_ = std::move(endpoint);
-    can_read_ = can_read;
-    can_write_ = can_write;
+	endpoint_ = std::move(endpoint);
+	can_read_ = can_read;
+	can_write_ = can_write;
 }
 
 void udp_connection::start_read()
 {
-    if(!can_read_)
-    {
-        return;
-    }
-    // Start an asynchronous operation to read a certain number of bytes.
-    // Here std::bind + shared_from_this is used because of the composite op async_*
-    // We want it to operate on valid data until the handler is called.
-    socket_->async_receive_from(
-                asio::null_buffers(), remote_endpoint_, asio::socket_base::message_peek,
-		strand_.wrap(std::bind(&base_type::handle_read, this->shared_from_this(),
-							   std::placeholders::_1, std::placeholders::_2)));
+	if(!can_read_)
+	{
+		return;
+	}
+	// Start an asynchronous operation to read a certain number of bytes.
+	// Here std::bind + shared_from_this is used because of the composite op async_*
+	// We want it to operate on valid data until the handler is called.
+	socket_->async_receive_from(asio::null_buffers(), remote_endpoint_, asio::socket_base::message_peek,
+								strand_.wrap(std::bind(&base_type::handle_read, this->shared_from_this(),
+													   std::placeholders::_1, std::placeholders::_2)));
 }
 void udp_connection::handle_read(const error_code& ec, std::size_t)
 {
@@ -77,14 +76,14 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 					// Extract the message from the builder.
 					auto msg = builder->extract_msg();
 
-                    for(const auto& callback : on_msg)
-                    {
-                        lock.unlock();
+					for(const auto& callback : on_msg)
+					{
+						lock.unlock();
 
 						callback(id, msg);
 
 						lock.lock();
-                    }
+					}
 				}
 
 				processed += operation.bytes;
@@ -101,10 +100,10 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 
 void udp_connection::start_write()
 {
-    if(!can_write_)
+	if(!can_write_)
 	{
-        std::lock_guard<std::mutex> lock(guard_);
-        output_queue_.clear();
+		std::lock_guard<std::mutex> lock(guard_);
+		output_queue_.clear();
 		return;
 	}
 	std::lock_guard<std::mutex> lock(guard_);
@@ -116,13 +115,12 @@ void udp_connection::start_write()
 		buffers.emplace_back(asio::buffer(buf));
 	}
 
-
 	// Start an asynchronous operation to send all messages.
-    // Here std::bind + shared_from_this is used because of the composite op async_*
-    // We want it to operate on valid data until the handler is called.
-	socket_->async_send_to(buffers, endpoint_,
-						   strand_.wrap(std::bind(&base_type::handle_write, this->shared_from_this(),
-												  std::placeholders::_1)));
+	// Here std::bind + shared_from_this is used because of the composite op async_*
+	// We want it to operate on valid data until the handler is called.
+	socket_->async_send_to(
+		buffers, endpoint_,
+		strand_.wrap(std::bind(&base_type::handle_write, this->shared_from_this(), std::placeholders::_1)));
 }
 void udp_connection::handle_write(const error_code& ec)
 {

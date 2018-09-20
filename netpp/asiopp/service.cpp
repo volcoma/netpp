@@ -69,6 +69,7 @@ void init_services(size_t workers)
 
 void deinit_services()
 {
+    log() << "Deinit network services";
 	get_work().reset();
 	get_io_context().stop();
 
@@ -76,9 +77,16 @@ void deinit_services()
 
 	for(auto& thread : threads)
 	{
-		if(thread.joinable())
+		try
 		{
-			thread.join();
+			if(thread.joinable())
+			{
+				thread.join();
+			}
+		}
+		catch(const std::exception& e)
+		{
+            log() << "Exception: " << e.what();
 		}
 	}
 	threads.clear();

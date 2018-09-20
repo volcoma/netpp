@@ -19,15 +19,15 @@ struct connector
 	connector();
 	virtual ~connector() = default;
 
-    //-----------------------------------------------------------------------------
-    /// Starts the connector.
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
+	/// Starts the connector.
+	//-----------------------------------------------------------------------------
 	virtual void start() = 0;
 
-    /// callback for when there is a connection ready
+	/// callback for when there is a connection ready
 	on_connection_ready_t on_connection_ready;
 
-    /// connector id
+	/// connector id
 	const id_t id;
 };
 

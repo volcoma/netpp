@@ -1,6 +1,6 @@
 #include "basic_sender.h"
 #include "connection.h"
-
+#include <asio/ip/multicast.hpp>
 namespace net
 {
 namespace udp
@@ -32,13 +32,13 @@ void basic_sender::start()
 		log() << "[Error] datagram_socket::broadcast : " << ec.message();
 	}
 	// sock is now open. Any failure in this scope will require a close()
-//	if(socket->set_option(asio::ip::multicast::enable_loopback(false), ec))
-//	{
-//		log() << "[Error] datagram_socket::multicast::enable_loopback : " << ec.message();
-//	}
+	//	if(socket->set_option(asio::ip::multicast::enable_loopback(false), ec))
+	//	{
+	//		log() << "[Error] datagram_socket::multicast::enable_loopback : " << ec.message();
+	//	}
 
-    auto session = std::make_shared<udp_connection>(std::move(socket), io_context_);
-    session->set_endpoint(endpoint_, false, true);
+	auto session = std::make_shared<udp_connection>(std::move(socket), io_context_);
+	session->set_endpoint(endpoint_, false, true);
 
 	if(on_connection_ready)
 	{

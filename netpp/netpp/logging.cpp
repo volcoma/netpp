@@ -17,8 +17,8 @@ void set_logger(const logger& log)
 
 log::~log()
 {
-    static std::mutex guard;
-    std::lock_guard<std::mutex> lock(guard);
+	static std::mutex guard;
+	std::lock_guard<std::mutex> lock(guard);
 	auto& func = get_logger();
 	if(func)
 	{

@@ -30,14 +30,14 @@ connector::id_t messenger::add_connector(const connector_ptr& connector, on_conn
 
 	auto weak_this = weak_ptr(shared_from_this());
 
-	connector->on_connection_ready = [info, weak_this](connection_ptr connection) {
+	connector->on_connection_ready = [info, weak_this, connector_id](connection_ptr connection) {
 		auto shared_this = weak_this.lock();
 		if(!shared_this)
 		{
 			return;
 		}
 
-		shared_this->on_new_connection(connection, info);
+		shared_this->on_new_connection(connector_id, connection, info);
 	};
 
 	{
@@ -58,8 +58,15 @@ void messenger::send_msg(connection::id_t id, byte_buffer&& msg)
 		return;
 	}
 	auto& conn_info = conn_it->second;
+
+    // get a copy so that we can unlock
+    // and work on unlocked mutex
+    // after the unlock we may be the last
+    // user of this connection.
 	auto connection = conn_info.connection;
+
 	lock.unlock();
+
 	connection->send_msg(std::move(msg), 0);
 }
 
@@ -73,8 +80,15 @@ void messenger::disconnect(connection::id_t id)
 		return;
 	}
 	auto& conn_info = conn_it->second;
+
+    // get a copy so that we can unlock
+    // and work on unlocked mutex
+    // after the unlock we may be the last
+    // user of this connection.
 	auto connection = conn_info.connection;
+
 	lock.unlock();
+
 	connection->stop({});
 }
 
@@ -92,12 +106,14 @@ bool messenger::empty() const
 
 void messenger::stop()
 {
-	std::unique_lock<std::mutex> lock(guard_);
-	connectors_.clear();
+    auto connections = [&]()
+    {
+        std::unique_lock<std::mutex> lock(guard_);
+        connectors_.clear();
+        return std::move(connections_);
+    }();
 
-	auto connections = std::move(connections_);
-	lock.unlock();
-
+    //safely iterate the extracted connections
 	for(auto& kvp : connections)
 	{
 		auto& conn_info = kvp.second;
@@ -106,15 +122,17 @@ void messenger::stop()
 	}
 }
 
-void messenger::on_new_connection(connection_ptr& connection, const user_info_ptr& info)
+void messenger::on_new_connection(connector::id_t connector_id, connection_ptr& connection, const user_info_ptr& info)
 {
 	auto weak_this = weak_ptr(shared_from_this());
 
     connection_info conn_info;
+    conn_info.connector_id = connector_id;
 	conn_info.connection = connection;
 
     //sentinel to be used to monitor if connection has been removed
-    //instead of expensive lookup into the connections container
+    //instead of expensive lookup into the connections container.
+    //this can also be used to
     conn_info.sentinel = std::make_shared<connection::id_t>(connection->id);
 
 	connection->on_disconnect.emplace_back([weak_this, info](connection::id_t id, const error_code& ec) {

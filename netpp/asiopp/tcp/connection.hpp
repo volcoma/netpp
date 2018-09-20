@@ -22,40 +22,39 @@ template <typename socket_type>
 class tcp_connection : public asio_connection<socket_type>
 {
 public:
-    //-----------------------------------------------------------------------------
-    /// Aliases.
-    //-----------------------------------------------------------------------------
-    using base_type = asio_connection<socket_type>;
+	//-----------------------------------------------------------------------------
+	/// Aliases.
+	//-----------------------------------------------------------------------------
+	using base_type = asio_connection<socket_type>;
 
-    //-----------------------------------------------------------------------------
-    /// Inherited constructors
-    //-----------------------------------------------------------------------------
-    using base_type::base_type;
+	//-----------------------------------------------------------------------------
+	/// Inherited constructors
+	//-----------------------------------------------------------------------------
+	using base_type::base_type;
 
-    //-----------------------------------------------------------------------------
-    /// Starts the async read operation awaiting for data
-    /// to be read from the socket.
-    //-----------------------------------------------------------------------------
-    void start_read() override;
+	//-----------------------------------------------------------------------------
+	/// Starts the async read operation awaiting for data
+	/// to be read from the socket.
+	//-----------------------------------------------------------------------------
+	void start_read() override;
 
-    //-----------------------------------------------------------------------------
-    /// Callback to be called whenever data was read from the socket
-    /// or an error occured.
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
+	/// Callback to be called whenever data was read from the socket
+	/// or an error occured.
+	//-----------------------------------------------------------------------------
 	void handle_read(const error_code& ec, std::size_t n) override;
 
-    //-----------------------------------------------------------------------------
-    /// Starts the async write operation awaiting for data
-    /// to be written to the socket.
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
+	/// Starts the async write operation awaiting for data
+	/// to be written to the socket.
+	//-----------------------------------------------------------------------------
 	void start_write() override;
 
-    //-----------------------------------------------------------------------------
-    /// Callback to be called whenever data was written to the socket
-    /// or an error occured.
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
+	/// Callback to be called whenever data was written to the socket
+	/// or an error occured.
+	//-----------------------------------------------------------------------------
 	void handle_write(const error_code& ec) override;
-
 };
 
 template <typename socket_type>
@@ -68,12 +67,12 @@ void tcp_connection<socket_type>::start_read()
 	auto offset = work_buffer.size();
 	work_buffer.resize(offset + operation.bytes);
 
-    // Here std::bind + shared_from_this is used because of the composite op async_*
-    // We want it to operate on valid data until the handler is called.
+	// Here std::bind + shared_from_this is used because of the composite op async_*
+	// We want it to operate on valid data until the handler is called.
 	asio::async_read(*this->socket_, asio::buffer(work_buffer.data() + offset, operation.bytes),
 					 asio::transfer_exactly(operation.bytes),
 					 this->strand_.wrap(std::bind(&base_type::handle_read, this->shared_from_this(),
-											std::placeholders::_1, std::placeholders::_2)));
+												  std::placeholders::_1, std::placeholders::_2)));
 }
 template <typename socket_type>
 void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
@@ -82,14 +81,8 @@ void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t 
 	{
 		return;
 	}
-	if(size == 0)
-	{
-		this->start();
-		return;
-	}
-
 	if(!ec)
-	{
+	{        
 		auto extract_msg = [&]() -> byte_buffer {
 			std::unique_lock<std::mutex> lock(this->guard_);
 			bool is_ready = this->builder->process_operation(size);
@@ -106,13 +99,13 @@ void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t 
 
 		start_read();
 
-        if(!msg.empty())
-        {
-            for(const auto& callback : this->on_msg)
-            {
-                callback(this->id, msg);
-            }
-        }
+		if(!msg.empty())
+		{
+			for(const auto& callback : this->on_msg)
+			{
+				callback(this->id, msg);
+			}
+		}
 	}
 	else
 	{
@@ -134,11 +127,11 @@ void tcp_connection<socket_type>::start_write()
 
 	// Start an asynchronous operation to send all messages.
 
-    // Here std::bind + shared_from_this is used because of the composite op async_*
-    // We want it to operate on valid data until the handler is called.
+	// Here std::bind + shared_from_this is used because of the composite op async_*
+	// We want it to operate on valid data until the handler is called.
 	asio::async_write(*this->socket_, buffers,
 					  this->strand_.wrap(std::bind(&base_type::handle_write, this->shared_from_this(),
-											 std::placeholders::_1)));
+												   std::placeholders::_1)));
 }
 template <typename socket_type>
 void tcp_connection<socket_type>::handle_write(const error_code& ec)

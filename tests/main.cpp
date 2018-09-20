@@ -2,28 +2,11 @@
 #include <chrono>
 #include <iostream>
 #include <tuple>
+#include <csignal>
+
 #include <asiopp/service.h>
 #include <messengerpp/messenger.h>
 #include <netpp/logging.h>
-// enum_map contains pairs of enum value and value string for each enum
-// this shortcut allows us to use enum_map<whatever>.
-template <typename ENUM>
-using enum_map = std::map<ENUM, const std::string>;
-
-// This variable template will create a map for each enum type which is
-// instantiated with.
-template <typename ENUM>
-enum_map<ENUM> enum_values{};
-
-template <typename ENUM>
-void initialize() {}
-
-template <typename ENUM, typename ... args>
-void initialize(const ENUM value, const char *name, args ... tail)
-{
-    enum_values<ENUM>.emplace(value, name);
-    initialize<ENUM>(tail ...);
-}
 
 using namespace std::chrono_literals;
 
@@ -94,10 +77,10 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
 
 		static int i = 0;
 
-//		if(i++ % 50 == 0)
-//		{
-//			net->send_msg(server_con, to_buffer("from_main"));
-//		}
+		if(i++ % 50 == 0)
+		{
+			net->send_msg(server_con, to_buffer("from_main"));
+		}
 	}
     server_con = 0;
 	net->stop();
@@ -153,10 +136,6 @@ int main(int argc, char* argv[])
 
 	config conf;
 	std::remove(conf.domain.c_str());
-
-	net::set_logger([](const std::string& msg) { std::cout << msg << std::endl; });
-
-	net::init_services(std::thread::hardware_concurrency());
 
     using creator = std::function<net::connector_ptr(config)>;
     std::vector<std::tuple<std::string, creator, creator>> creators =
@@ -239,7 +218,15 @@ int main(int argc, char* argv[])
 //            }
 //        }
     };
+    std::signal(SIGINT, [](int)
+    {
+        net::deinit_messengers();
+        net::deinit_services();
+        std::exit(0);
+    });
 
+    net::set_logger([](const std::string& msg) { std::cout << msg << std::endl; });
+	net::init_services(std::thread::hardware_concurrency());
 
 	try
 	{

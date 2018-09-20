@@ -1,7 +1,7 @@
 #pragma once
-#include <netpp/connector.h>
 #include <memory>
 #include <mutex>
+#include <netpp/connector.h>
 namespace net
 {
 
@@ -10,7 +10,7 @@ class messenger : public std::enable_shared_from_this<messenger>
 public:
 	using ptr = std::shared_ptr<messenger>;
 	using weak_ptr = std::weak_ptr<messenger>;
-    using on_msg_t = std::function<void(connection::id_t, const byte_buffer&)>;
+	using on_msg_t = std::function<void(connection::id_t, const byte_buffer&)>;
 	using on_connect_t = std::function<void(connection::id_t)>;
 	using on_disconnect_t = std::function<void(connection::id_t, const error_code&)>;
 
@@ -41,10 +41,11 @@ private:
 
 	struct connection_info
 	{
-        std::shared_ptr<void> sentinel;
+        connector::id_t connector_id = 0;
+		std::shared_ptr<void> sentinel;
 		connection_ptr connection;
 	};
-	void on_new_connection(connection_ptr& connection, const user_info_ptr& info);
+	void on_new_connection(connector::id_t connector_id, connection_ptr& connection, const user_info_ptr& info);
 
 	void on_disconnect(connection::id_t id, error_code ec, const user_info_ptr& info);
 	void on_msg(connection::id_t id, const byte_buffer& msg, const user_info_ptr& info);
