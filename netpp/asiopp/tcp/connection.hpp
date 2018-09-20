@@ -63,8 +63,8 @@ void tcp_connection<socket_type>::start_read()
 {
 	std::lock_guard<std::mutex> lock(this->guard_);
 	// Start an asynchronous operation to read a certain number of bytes.
-	auto operation = this->msg_builder_->get_next_operation();
-	auto& work_buffer = this->msg_builder_->get_work_buffer();
+	auto operation = this->builder->get_next_operation();
+	auto& work_buffer = this->builder->get_work_buffer();
 	auto offset = work_buffer.size();
 	work_buffer.resize(offset + operation.bytes);
 
@@ -92,11 +92,11 @@ void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t 
 	{
 		auto extract_msg = [&]() -> byte_buffer {
 			std::unique_lock<std::mutex> lock(this->guard_);
-			bool is_ready = this->msg_builder_->process_operation(size);
+			bool is_ready = this->builder->process_operation(size);
 			if(is_ready)
 			{
 				// Extract the message from the builder.
-				return this->msg_builder_->extract_msg();
+				return this->builder->extract_msg();
 			}
 
 			return {};
@@ -106,10 +106,13 @@ void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t 
 
 		start_read();
 
-		if(!msg.empty())
-		{
-			this->on_msg(this->id, msg);
-		}
+        if(!msg.empty())
+        {
+            for(const auto& callback : this->on_msg)
+            {
+                callback(this->id, msg);
+            }
+        }
 	}
 	else
 	{

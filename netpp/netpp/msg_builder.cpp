@@ -33,7 +33,7 @@ bool is_little_endian()
 template <typename T>
 size_t to_bytes(T data, uint8_t* dst)
 {
-	endian_swap(&data);
+	//endian_swap(&data);
 	const auto begin = reinterpret_cast<const uint8_t*>(std::addressof(data));
 
 	const auto sz = sizeof(T);
@@ -49,7 +49,7 @@ size_t from_bytes(T& data, const uint8_t* src)
 	auto dst = reinterpret_cast<uint8_t*>(std::addressof(data));
 	const auto sz = sizeof(T);
 	std::memcpy(dst, src, sz);
-	endian_swap(&data);
+	//endian_swap(&data);
 	return sz;
 }
 }
@@ -84,7 +84,7 @@ std::vector<byte_buffer> multi_buffer_builder::build(byte_buffer&& msg, data_cha
 	// add a buffer containig only the size of the header to be read after that
 	buffers.emplace_back(size_of_header_sz);
 	auto& size_of_header_buffer = buffers.back();
-	utils::to_bytes(header_size_t(header_sz), size_of_header_buffer.data());
+	utils::to_bytes(header_size_t(total_header_sz), size_of_header_buffer.data());
 
 	// add a buffer containing the actual header
 	buffers.emplace_back(header_sz);
@@ -117,7 +117,7 @@ bool multi_buffer_builder::process_operation(size_t size)
 			utils::from_bytes(header_size, msg_.data());
 
 			get_work_buffer().clear();
-			set_next_operation(op_type::read_header, header_size);
+			set_next_operation(op_type::read_header, header_size - sizeof(header_size_t));
 		}
 		break;
 		case op_type::read_header:
@@ -149,7 +149,7 @@ bool multi_buffer_builder::process_operation(size_t size)
 	return ready;
 }
 
-const msg_builder::operation& multi_buffer_builder::get_next_operation() const
+msg_builder::operation multi_buffer_builder::get_next_operation() const
 {
 	return op_;
 }
@@ -242,7 +242,7 @@ bool single_buffer_builder::process_operation(size_t size)
 	return ready;
 }
 
-const msg_builder::operation& single_buffer_builder::get_next_operation() const
+msg_builder::operation single_buffer_builder::get_next_operation() const
 {
 	return op_;
 }

@@ -58,7 +58,7 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 			while(processed < available)
 			{
 				// Start an asynchronous operation to read a certain number of bytes.
-				auto operation = msg_builder_->get_next_operation();
+				auto operation = builder->get_next_operation();
 
 				auto left = available - processed;
 				if(left < operation.bytes)
@@ -66,24 +66,25 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 					break;
 				}
 
-				auto& work_buffer = msg_builder_->get_work_buffer();
+				auto& work_buffer = builder->get_work_buffer();
 				auto offset = work_buffer.size();
 				work_buffer.resize(offset + operation.bytes);
 				std::memcpy(work_buffer.data(), buf.data() + processed, work_buffer.size());
 
-				bool is_ready = msg_builder_->process_operation(operation.bytes);
+				bool is_ready = builder->process_operation(operation.bytes);
 				if(is_ready)
 				{
 					// Extract the message from the builder.
-					auto msg = msg_builder_->extract_msg();
-					if(on_msg)
-					{
-						lock.unlock();
+					auto msg = builder->extract_msg();
 
-						on_msg(id, msg);
+                    for(const auto& callback : on_msg)
+                    {
+                        lock.unlock();
+
+						callback(id, msg);
 
 						lock.lock();
-					}
+                    }
 				}
 
 				processed += operation.bytes;

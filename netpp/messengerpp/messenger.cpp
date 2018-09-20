@@ -128,7 +128,7 @@ void messenger::on_new_connection(connection_ptr& connection, const user_info_pt
 	});
 
     auto sentinel = std::weak_ptr<void>(conn_info.sentinel);
-	connection->on_msg = [weak_this, info, sentinel](connection::id_t id, const byte_buffer& msg) {
+	connection->on_msg.emplace_back([weak_this, info, sentinel](connection::id_t id, const byte_buffer& msg) {
 		auto shared_this = weak_this.lock();
 		if(!shared_this || sentinel.expired())
 		{
@@ -136,7 +136,7 @@ void messenger::on_new_connection(connection_ptr& connection, const user_info_pt
 		}
 
 		shared_this->on_msg(id, msg, info);
-	};
+	});
 
 	{
 		std::lock_guard<std::mutex> lock(guard_);

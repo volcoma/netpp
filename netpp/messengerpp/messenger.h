@@ -10,9 +10,9 @@ class messenger : public std::enable_shared_from_this<messenger>
 public:
 	using ptr = std::shared_ptr<messenger>;
 	using weak_ptr = std::weak_ptr<messenger>;
-	using on_msg_t = connector::on_msg_t;
-	using on_connect_t = connector::on_connect_t;
-	using on_disconnect_t = connector::on_disconnect_t;
+    using on_msg_t = std::function<void(connection::id_t, const byte_buffer&)>;
+	using on_connect_t = std::function<void(connection::id_t)>;
+	using on_disconnect_t = std::function<void(connection::id_t, const error_code&)>;
 
 	static ptr create();
 

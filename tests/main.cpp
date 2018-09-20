@@ -87,17 +87,17 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
 	}
 	clients.clear();
 
-	auto end = std::chrono::steady_clock::now() + 10s;
+	auto end = std::chrono::steady_clock::now() + 100s;
 	while(!net->empty() && std::chrono::steady_clock::now() < end)
 	{
 		std::this_thread::sleep_for(16ms);
 
 		static int i = 0;
 
-		if(i++ % 50 == 0)
-		{
-			net->send_msg(server_con, to_buffer("from_main"));
-		}
+//		if(i++ % 50 == 0)
+//		{
+//			net->send_msg(server_con, to_buffer("from_main"));
+//		}
 	}
     server_con = 0;
 	net->stop();
@@ -148,7 +148,7 @@ int main(int argc, char* argv[])
         std::string cert_chain_file = CERT_DIR "server.pem";
         std::string private_key_file = CERT_DIR "server.pem";
         std::string dh_file = CERT_DIR "dh2048.pem";
-        uint16_t port = 2000;
+        uint16_t port = 11111;
     };
 
 	config conf;
@@ -172,28 +172,28 @@ int main(int argc, char* argv[])
 //                return net::create_udp_unicast_server(conf.address, conf.port);
 //            }
 //        },
-        {
-            "MULTICAST",
-            [](const config& conf)
-            {
-                return net::create_udp_multicast_client(conf.multicast_address, conf.port);
-            },
-            [](const config& conf)
-            {
-                return net::create_udp_multicast_server(conf.multicast_address, conf.port);
-            }
-        },
-        {
-            "BROADCAST",
-            [](const config& conf)
-            {
-                return net::create_udp_broadcast_client(conf.port);
-            },
-            [](const config& conf)
-            {
-                return net::create_udp_broadcast_server(conf.port);
-            }
-        },
+//        {
+//            "MULTICAST",
+//            [](const config& conf)
+//            {
+//                return net::create_udp_multicast_client(conf.multicast_address, conf.port);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_udp_multicast_server(conf.multicast_address, conf.port);
+//            }
+//        },
+//        {
+//            "BROADCAST",
+//            [](const config& conf)
+//            {
+//                return net::create_udp_broadcast_client(conf.port);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_udp_broadcast_server(conf.port);
+//            }
+//        },
         {
             "TCP",
             [](const config& conf)
@@ -205,39 +205,39 @@ int main(int argc, char* argv[])
                 return net::create_tcp_server(conf.port);
             }
         },
-        {
-            "TCP SSL",
-            [](const config& conf)
-            {
-                return net::create_tcp_ssl_client(conf.address, conf.port, conf.cert_file);
-            },
-            [](const config& conf)
-            {
-                return net::create_tcp_ssl_server(conf.port, conf.cert_chain_file, conf.private_key_file, conf.dh_file);
-            }
-        },
-        {
-            "TCP LOCAL",
-            [](const config& conf)
-            {
-                return net::create_tcp_local_client(conf.domain);
-            },
-            [](const config& conf)
-            {
-                return net::create_tcp_local_server(conf.domain);
-            }
-        },
-        {
-            "TCP SSL LOCAL",
-            [](const config& conf)
-            {
-                return net::create_tcp_ssl_local_client(conf.domain, conf.cert_file);
-            },
-            [](const config& conf)
-            {
-                return net::create_tcp_ssl_local_server(conf.domain, conf.cert_chain_file, conf.private_key_file, conf.dh_file);
-            }
-        }
+//        {
+//            "TCP SSL",
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_ssl_client(conf.address, conf.port, conf.cert_file);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_ssl_server(conf.port, conf.cert_chain_file, conf.private_key_file, conf.dh_file);
+//            }
+//        },
+//        {
+//            "TCP LOCAL",
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_local_client(conf.domain);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_local_server(conf.domain);
+//            }
+//        },
+//        {
+//            "TCP SSL LOCAL",
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_ssl_local_client(conf.domain, conf.cert_file);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_ssl_local_server(conf.domain, conf.cert_chain_file, conf.private_key_file, conf.dh_file);
+//            }
+//        }
     };
 
 

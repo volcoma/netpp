@@ -11,20 +11,23 @@
 namespace net
 {
 
-//----------------------------------------------------------------------
-
 struct connector
 {
 	using id_t = uint64_t;
-	using on_msg_t = std::function<void(connection::id_t, const byte_buffer&)>;
-	using on_connect_t = std::function<void(connection::id_t)>;
-	using on_disconnect_t = std::function<void(connection::id_t, const std::error_code&)>;
 	using on_connection_ready_t = std::function<void(connection_ptr)>;
+
 	connector();
 	virtual ~connector() = default;
+
+    //-----------------------------------------------------------------------------
+    /// Starts the connector.
+    //-----------------------------------------------------------------------------
 	virtual void start() = 0;
 
+    /// callback for when there is a connection ready
 	on_connection_ready_t on_connection_ready;
+
+    /// connector id
 	const id_t id;
 };
 

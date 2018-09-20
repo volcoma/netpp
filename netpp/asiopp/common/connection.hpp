@@ -152,7 +152,7 @@ asio_connection<socket_type>::asio_connection(std::shared_ptr<socket_type> socke
 	// actor stays asleep until a message is put into the queue.
 	non_empty_output_queue_.expires_at(asio::steady_timer::time_point::max());
 
-	msg_builder_ = std::make_unique<multi_buffer_builder>();
+	builder = std::make_unique<multi_buffer_builder>();
 }
 
 template <typename socket_type>
@@ -189,7 +189,7 @@ template <typename socket_type>
 void asio_connection<socket_type>::send_msg(byte_buffer&& msg, data_channel channel)
 {
 	std::lock_guard<std::mutex> lock(guard_);
-	auto buffers = msg_builder_->build(std::move(msg), channel);
+	auto buffers = builder->build(std::move(msg), channel);
 
 	output_queue_.emplace_back(std::move(buffers));
 
