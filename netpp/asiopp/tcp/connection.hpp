@@ -5,13 +5,12 @@
 #include <asio/buffer.hpp>
 #include <asio/error.hpp>
 #include <asio/io_service.hpp>
-#include <asio/strand.hpp>
 #include <asio/read.hpp>
 #include <asio/steady_timer.hpp>
 #include <asio/strand.hpp>
 #include <asio/write.hpp>
-#include <deque>
 #include <chrono>
+#include <deque>
 #include <thread>
 
 namespace net
@@ -70,7 +69,7 @@ private:
 	bool stopped() const;
 	void send_msg(byte_buffer&& msg, data_channel channel) override;
 
-    void start_read();
+	void start_read();
 	void handle_read(const error_code& ec, std::size_t n);
 	void await_output();
 	void start_write();
@@ -78,7 +77,7 @@ private:
 
 	mutable std::mutex guard_;
 
-    //deque to avoid elements invalidation when resizing
+	// deque to avoid elements invalidation when resizing
 	std::deque<std::vector<byte_buffer>> output_queue_;
 
 	asio::io_service::strand strand_;
@@ -138,7 +137,7 @@ bool async_connection<socket_type>::stopped() const
 template <typename socket_type>
 void async_connection<socket_type>::send_msg(byte_buffer&& msg, data_channel channel)
 {
-    std::lock_guard<std::mutex> lock(guard_);
+	std::lock_guard<std::mutex> lock(guard_);
 	auto buffers = msg_builder_->build(std::move(msg), channel);
 
 	output_queue_.emplace_back(std::move(buffers));
@@ -161,7 +160,6 @@ void async_connection<socket_type>::start_read()
 					 asio::transfer_exactly(operation.bytes),
 					 strand_.wrap(std::bind(&async_connection::handle_read, this->shared_from_this(),
 											std::placeholders::_1, std::placeholders::_2)));
-
 }
 template <typename socket_type>
 void async_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
@@ -170,11 +168,11 @@ void async_connection<socket_type>::handle_read(const error_code& ec, std::size_
 	{
 		return;
 	}
-    if(size == 0)
-    {
-        start();
-        return;
-    }
+	if(size == 0)
+	{
+		start();
+		return;
+	}
 
 	if(!ec)
 	{

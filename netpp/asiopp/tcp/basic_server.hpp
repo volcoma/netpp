@@ -22,21 +22,16 @@ public:
 	basic_server(asio::io_service& io_context, const protocol_endpoint& endpoint)
 		: io_context_(io_context)
 		, acceptor_(io_context)
-        , endpoint_(endpoint)
+		, endpoint_(endpoint)
 	{
-
+		acceptor_.open(endpoint_.protocol());
+		acceptor_.set_option(asio::socket_base::reuse_address(true));
+		acceptor_.bind(endpoint_);
+		acceptor_.listen();
 	}
 
 	void start() override
 	{
-        if(!acceptor_.is_open())
-        {
-            acceptor_.open(endpoint_.protocol());
-            acceptor_.set_option(asio::socket_base::reuse_address(true));
-            acceptor_.bind(endpoint_);
-            acceptor_.listen();
-        }
-
 		auto socket = std::make_shared<protocol_socket>(io_context_);
 
 		auto weak_this = weak_ptr(this->shared_from_this());
@@ -55,7 +50,7 @@ public:
 	template <typename socket_type, typename F>
 	void async_accept(socket_type& socket, F f)
 	{
-		log() << "[NET] : Accepting connections on " << acceptor_.local_endpoint() << "...\n";
+		log() << "Accepting connections on " << acceptor_.local_endpoint() << "...";
 
 		auto weak_this = weak_ptr(this->shared_from_this());
 		auto& lowest_layer = socket->lowest_layer();
@@ -64,7 +59,7 @@ public:
 						   on_connection_established = std::move(f)](const error_code& ec) mutable {
 				if(ec)
 				{
-					log() << "[NET] : Accept error: " << ec.message() << "\n";
+					log() << "Accept error: " << ec.message();
 
 					// We need to close the socket used in the previous connection attempt
 					// before starting a new one.
@@ -89,8 +84,8 @@ public:
 	template <typename socket_type>
 	void on_handshake_complete(std::shared_ptr<socket_type> socket)
 	{
-		log() << "[NET] : Handshake server::" << socket->lowest_layer().local_endpoint()
-			  << " -> client::" << socket->lowest_layer().remote_endpoint() << " completed.\n";
+		log() << "Handshake server::" << socket->lowest_layer().local_endpoint()
+			  << " -> client::" << socket->lowest_layer().remote_endpoint() << " completed.";
 
 		auto session = std::make_shared<async_connection<socket_type>>(socket, io_context_);
 		if(on_connection_ready)
@@ -100,9 +95,8 @@ public:
 	}
 
 protected:
-
 	protocol_acceptor acceptor_;
-    protocol_endpoint endpoint_;
+	protocol_endpoint endpoint_;
 	asio::io_service& io_context_;
 };
 }

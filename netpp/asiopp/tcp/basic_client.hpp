@@ -1,8 +1,8 @@
 #pragma once
 #include "connection.hpp"
 
-#include <netpp/connector.h>
 #include <asio/basic_socket_acceptor.hpp>
+#include <netpp/connector.h>
 
 namespace net
 {
@@ -45,7 +45,7 @@ public:
 	template <typename socket_type, typename F>
 	void async_connect(socket_type& socket, F f)
 	{
-		log() << "[NET] : Trying to connect to " << endpoint_ << " ...\n";
+		log() << "Trying to connect to " << endpoint_ << " ...";
 
 		auto weak_this = weak_ptr(this->shared_from_this());
 
@@ -60,7 +60,7 @@ public:
 				// Check if the connect operation failed before the deadline expired.
 				if(ec)
 				{
-					// log() << "[NET] : Connect error: " << ec.message() << "\n";
+					// log() << "[NET] : Connect error: " << ec.message();
 					socket.reset();
 
 					auto shared_this = weak_this.lock();
@@ -83,8 +83,8 @@ public:
 	template <typename socket_type>
 	void on_handshake_complete(const std::shared_ptr<socket_type>& socket)
 	{
-		log() << "[NET] : Handshake client::" << socket->lowest_layer().local_endpoint()
-			  << " -> server::" << socket->lowest_layer().remote_endpoint() << " completed.\n";
+		log() << "Handshake client::" << socket->lowest_layer().local_endpoint()
+			  << " -> server::" << socket->lowest_layer().remote_endpoint() << " completed.";
 
 		auto session = std::make_shared<async_connection<socket_type>>(socket, io_context_);
 
@@ -107,7 +107,7 @@ public:
 
 protected:
 	protocol_endpoint endpoint_;
-    asio::io_service& io_context_;
+	asio::io_service& io_context_;
 };
 }
 } // namespace net

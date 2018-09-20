@@ -53,7 +53,7 @@ endif()
 
 
 if(BUILD_SHARED_LIBS)
-	set(OPENSSL_USE_STATIC_LIBS TRUE)
+	set(OPENSSL_USE_STATIC_LIBS FALSE)
 endif()
 
 find_package(OpenSSL REQUIRED)
@@ -97,9 +97,8 @@ if (WIN32)
   endif()
 endif()
 
-
-
 target_link_libraries(asio INTERFACE OpenSSL::SSL OpenSSL::Crypto)
+
 target_compile_definitions(asio
                            INTERFACE ASIO_STANDALONE
                            INTERFACE ASIO_HAS_STD_CHRONO

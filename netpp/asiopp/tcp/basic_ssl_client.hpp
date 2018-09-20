@@ -21,7 +21,7 @@ inline bool verify_certificate(bool preverified, asio::ssl::verify_context& ctx)
 	char subject_name[256];
 	X509* cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
 	X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
-	log() << "Verifying " << subject_name << "\n";
+	log() << "Verifying " << subject_name;
 
 	return preverified;
 }
@@ -67,7 +67,7 @@ public:
 										[weak_this, ssl_socket](const error_code& ec) mutable {
 											if(ec)
 											{
-												log() << "[NET] : handshake error: " << ec.message() << "\n";
+												log() << "handshake error: " << ec.message();
 
 												auto shared_this = weak_this.lock();
 												if(!shared_this)

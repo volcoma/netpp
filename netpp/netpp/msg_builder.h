@@ -19,7 +19,7 @@ struct msg_builder
 
 	enum class op_type
 	{
-        read_header_size,
+		read_header_size,
 		read_header,
 		read_msg
 	};
@@ -42,15 +42,15 @@ using msg_builder_ptr = std::unique_ptr<msg_builder>;
 class multi_buffer_builder : public msg_builder
 {
 public:
-    using header_size_t = uint8_t;
-    using payload_size_t = uint32_t;
-    using channel_t = uint64_t;
-    using id_t = uint16_t;
+	using header_size_t = uint8_t;
+	using payload_size_t = uint32_t;
+	using channel_t = uint64_t;
+	using id_t = uint16_t;
 
 	multi_buffer_builder();
 
 	static size_t get_header_size();
-    static size_t get_total_header_size();
+	static size_t get_total_header_size();
 
 	std::vector<byte_buffer> build(byte_buffer&& msg, data_channel channel) const final;
 
@@ -72,14 +72,14 @@ private:
 class single_buffer_builder : public msg_builder
 {
 public:
-    using header_size_t = uint8_t;
-    using payload_size_t = uint32_t;
-    using channel_t = uint64_t;
-    using id_t = uint16_t;
+	using header_size_t = uint8_t;
+	using payload_size_t = uint32_t;
+	using channel_t = uint64_t;
+	using id_t = uint16_t;
 	single_buffer_builder();
 
 	static size_t get_header_size();
-    static size_t get_total_header_size();
+	static size_t get_total_header_size();
 
 	std::vector<byte_buffer> build(byte_buffer&& msg, data_channel channel) const final;
 

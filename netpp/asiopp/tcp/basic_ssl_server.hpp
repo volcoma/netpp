@@ -35,7 +35,7 @@ public:
 
 	void start()
 	{
-        auto socket = compatibility::make_socket<protocol_socket>(this->io_context_);
+		auto socket = compatibility::make_socket<protocol_socket>(this->io_context_);
 
 		auto weak_this = weak_ptr(this->shared_from_this());
 		auto on_connection_established = [weak_this, this, socket = socket.get()]() mutable
@@ -45,14 +45,14 @@ public:
 			{
 				return;
 			}
-            auto ssl_socket = compatibility::make_ssl_socket(std::move(*socket), context_);
+			auto ssl_socket = compatibility::make_ssl_socket(std::move(*socket), context_);
 
 			// Start the asynchronous handshake operation.
 			ssl_socket->async_handshake(asio::ssl::stream_base::server,
 										[weak_this, ssl_socket](const error_code& ec) mutable {
 											if(ec)
 											{
-												log() << "[NET] : handshake error: " << ec.message() << "\n";
+												log() << "handshake error: " << ec.message();
 
 												auto shared_this = weak_this.lock();
 												if(!shared_this)
