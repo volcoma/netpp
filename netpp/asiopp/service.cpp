@@ -83,6 +83,7 @@ void deinit_services()
 	}
 	threads.clear();
 }
+
 connector_ptr create_tcp_server(uint16_t port)
 {
 	using type = net::tcp::basic_server<asio::ip::tcp>;
@@ -91,7 +92,7 @@ connector_ptr create_tcp_server(uint16_t port)
 	return std::make_shared<type>(net_context, endpoint);
 }
 
-net::connector_ptr create_tcp_client(const std::string& host, uint16_t port)
+connector_ptr create_tcp_client(const std::string& host, uint16_t port)
 {
 	using type = net::tcp::basic_client<asio::ip::tcp>;
 	auto& net_context = get_io_context();
@@ -122,7 +123,7 @@ connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, cons
 	return std::make_shared<type>(net_context, endpoint, cert_file);
 }
 
-net::connector_ptr create_tcp_local_server(const std::string& file)
+connector_ptr create_tcp_local_server(const std::string& file)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
 	using type = net::tcp::basic_server<asio::local::stream_protocol>;
@@ -136,7 +137,7 @@ net::connector_ptr create_tcp_local_server(const std::string& file)
 #endif
 }
 
-net::connector_ptr create_tcp_local_client(const std::string& file)
+connector_ptr create_tcp_local_client(const std::string& file)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
 	using type = net::tcp::basic_client<asio::local::stream_protocol>;
@@ -186,7 +187,7 @@ connector_ptr create_tcp_ssl_local_client(const std::string& file, const std::st
 connector_ptr create_udp_unicast_server(const std::string& unicast_address, uint16_t port)
 {
 	auto& net_context = get_io_context();
-	auto address = asio::ip::make_address(unicast_address);
+	auto address = asio::ip::address::from_string(unicast_address);
 	if(address.is_multicast())
 	{
 		log() << "Creating a udp unicast server, you provided a multicast address.";
@@ -202,7 +203,7 @@ connector_ptr create_udp_unicast_client(const std::string& unicast_address, uint
 	auto& net_context = get_io_context();
 
 	asio::ip::udp::endpoint listen_endpoint(asio::ip::address_v6::any(), port);
-	auto address = asio::ip::make_address(unicast_address);
+	auto address = asio::ip::address::from_string(unicast_address);
 	if(address.is_multicast())
 	{
 		log() << "Creating a udp unicast server, you provided a multicast address.";
@@ -216,7 +217,7 @@ connector_ptr create_udp_unicast_client(const std::string& unicast_address, uint
 connector_ptr create_udp_multicast_server(const std::string& multicast_address, uint16_t port)
 {
 	auto& net_context = get_io_context();
-	auto address = asio::ip::make_address(multicast_address);
+	auto address = asio::ip::address::from_string(multicast_address);
 	if(!address.is_multicast())
 	{
 		log() << "Must specify a valid multicast address.";
@@ -226,12 +227,12 @@ connector_ptr create_udp_multicast_server(const std::string& multicast_address, 
 	return std::make_shared<net::udp::basic_sender>(net_context, endpoint);
 }
 
-net::connector_ptr create_udp_multicast_client(const std::string& multicast_address, uint16_t port)
+connector_ptr create_udp_multicast_client(const std::string& multicast_address, uint16_t port)
 {
 	auto& net_context = get_io_context();
 
 	asio::ip::udp::endpoint listen_endpoint(asio::ip::address_v6::any(), port);
-	auto address = asio::ip::make_address(multicast_address);
+	auto address = asio::ip::address::from_string(multicast_address);
 	if(!address.is_multicast())
 	{
 		log() << "Must specify a valid multicast address.";

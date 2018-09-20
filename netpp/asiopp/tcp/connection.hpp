@@ -1,5 +1,5 @@
 #pragma once
-#include <netpp/connection.h>
+#include "../common/connection.hpp"
 
 #include <asio/basic_stream_socket.hpp>
 #include <asio/buffer.hpp>
@@ -17,172 +17,86 @@ namespace net
 {
 namespace tcp
 {
-//----------------------------------------------------------------------
-// The input actor reads messages from the socket.
-//
-//  +------------+
-//  |            |
-//  | start_read |<---+
-//  |            |    |
-//  +------------+    |
-//          |         |
-//          |    +-------------+
-//  async_- |    |             |
-//  read_() +--->| handle_read |
-//               |             |
-//               +-------------+
-//
-// The output actor is responsible for sending messages to the client:
-//
-//  +--------------+
-//  |              |<---------------------+
-//  | await_output |                      |
-//  |              |<---+                 |
-//  +--------------+    |                 |
-//      |      |        | async_wait()    |
-//      |      +--------+                 |
-//      V                                 |
-//  +-------------+               +--------------+
-//  |             | async_write() |              |
-//  | start_write |-------------->| handle_write |
-//  |             |               |              |
-//  +-------------+               +--------------+
-//
-// The output actor first waits for an output message to be enqueued. It does
-// this by using a steady_timer as an asynchronous condition variable. The
-// steady_timer will be signalled whenever the output queue is non-empty.
-//
-// Once a message is available, it is sent to the client. The deadline for
-// sending a complete message is 30 seconds. After the message is successfully
-// sent, the output actor again waits for the output queue to become non-empty.
 
 template <typename socket_type>
-class async_connection : public connection, public std::enable_shared_from_this<async_connection<socket_type>>
+class tcp_connection : public asio_connection<socket_type>
 {
 public:
-	async_connection(const std::shared_ptr<socket_type>& socket, asio::io_service& context);
+    //-----------------------------------------------------------------------------
+    /// Aliases.
+    //-----------------------------------------------------------------------------
+    using base_type = asio_connection<socket_type>;
 
-	void start() override;
-	void stop(const error_code& ec) override;
+    //-----------------------------------------------------------------------------
+    /// Inherited constructors
+    //-----------------------------------------------------------------------------
+    using base_type::base_type;
 
-private:
-	bool stopped() const;
-	void send_msg(byte_buffer&& msg, data_channel channel) override;
+    //-----------------------------------------------------------------------------
+    /// Starts the async read operation awaiting for data
+    /// to be read from the socket.
+    //-----------------------------------------------------------------------------
+    void start_read() override;
 
-	void start_read();
-	void handle_read(const error_code& ec, std::size_t n);
-	void await_output();
-	void start_write();
-	void handle_write(const error_code& ec);
+    //-----------------------------------------------------------------------------
+    /// Callback to be called whenever data was read from the socket
+    /// or an error occured.
+    //-----------------------------------------------------------------------------
+	void handle_read(const error_code& ec, std::size_t n) override;
 
-	mutable std::mutex guard_;
+    //-----------------------------------------------------------------------------
+    /// Starts the async write operation awaiting for data
+    /// to be written to the socket.
+    //-----------------------------------------------------------------------------
+	void start_write() override;
 
-	// deque to avoid elements invalidation when resizing
-	std::deque<std::vector<byte_buffer>> output_queue_;
+    //-----------------------------------------------------------------------------
+    /// Callback to be called whenever data was written to the socket
+    /// or an error occured.
+    //-----------------------------------------------------------------------------
+	void handle_write(const error_code& ec) override;
 
-	asio::io_service::strand strand_;
-
-	std::shared_ptr<socket_type> socket_;
-	asio::steady_timer non_empty_output_queue_;
-
-	std::atomic<bool> connected{false};
 };
 
 template <typename socket_type>
-async_connection<socket_type>::async_connection(const std::shared_ptr<socket_type>& socket,
-												asio::io_service& context)
-	: strand_(context)
-	, socket_(socket)
-	, non_empty_output_queue_(context)
+void tcp_connection<socket_type>::start_read()
 {
-	socket_->lowest_layer().non_blocking(true);
-	// The non_empty_output_queue_ steady_timer is set to the maximum time
-	// point whenever the output queue is empty. This ensures that the output
-	// actor stays asleep until a message is put into the queue.
-	non_empty_output_queue_.expires_at(asio::steady_timer::time_point::max());
-
-	msg_builder_ = std::make_unique<single_buffer_builder>();
-}
-
-template <typename socket_type>
-void async_connection<socket_type>::start()
-{
-	connected = true;
-	start_read();
-	await_output();
-}
-template <typename socket_type>
-void async_connection<socket_type>::stop(const error_code& ec)
-{
-	{
-		std::lock_guard<std::mutex> lock(guard_);
-		non_empty_output_queue_.cancel();
-	}
-
-	if(connected.exchange(false))
-	{
-		for(const auto& callback : on_disconnect)
-		{
-			callback(id, ec ? ec : asio::error::make_error_code(asio::error::connection_aborted));
-		}
-	}
-}
-template <typename socket_type>
-bool async_connection<socket_type>::stopped() const
-{
-	std::lock_guard<std::mutex> lock(guard_);
-	return !socket_->lowest_layer().is_open();
-}
-
-template <typename socket_type>
-void async_connection<socket_type>::send_msg(byte_buffer&& msg, data_channel channel)
-{
-	std::lock_guard<std::mutex> lock(guard_);
-	auto buffers = msg_builder_->build(std::move(msg), channel);
-
-	output_queue_.emplace_back(std::move(buffers));
-
-	// Signal that the output queue contains messages. Modifying the expiry
-	// will wake the output actor, if it is waiting on the timer.
-	non_empty_output_queue_.expires_at(asio::steady_timer::time_point::min());
-}
-
-template <typename socket_type>
-void async_connection<socket_type>::start_read()
-{
-	std::lock_guard<std::mutex> lock(guard_);
+	std::lock_guard<std::mutex> lock(this->guard_);
 	// Start an asynchronous operation to read a certain number of bytes.
-	auto operation = msg_builder_->get_next_operation();
-	auto& work_buffer = msg_builder_->get_work_buffer();
+	auto operation = this->msg_builder_->get_next_operation();
+	auto& work_buffer = this->msg_builder_->get_work_buffer();
 	auto offset = work_buffer.size();
 	work_buffer.resize(offset + operation.bytes);
-	asio::async_read(*socket_, asio::buffer(work_buffer.data() + offset, operation.bytes),
+
+    // Here std::bind + shared_from_this is used because of the composite op async_*
+    // We want it to operate on valid data until the handler is called.
+	asio::async_read(*this->socket_, asio::buffer(work_buffer.data() + offset, operation.bytes),
 					 asio::transfer_exactly(operation.bytes),
-					 strand_.wrap(std::bind(&async_connection::handle_read, this->shared_from_this(),
+					 this->strand_.wrap(std::bind(&base_type::handle_read, this->shared_from_this(),
 											std::placeholders::_1, std::placeholders::_2)));
 }
 template <typename socket_type>
-void async_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
+void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
 {
-	if(stopped())
+	if(this->stopped())
 	{
 		return;
 	}
 	if(size == 0)
 	{
-		start();
+		this->start();
 		return;
 	}
 
 	if(!ec)
 	{
 		auto extract_msg = [&]() -> byte_buffer {
-			std::unique_lock<std::mutex> lock(guard_);
-			bool is_ready = msg_builder_->process_operation(size);
+			std::unique_lock<std::mutex> lock(this->guard_);
+			bool is_ready = this->msg_builder_->process_operation(size);
 			if(is_ready)
 			{
 				// Extract the message from the builder.
-				return msg_builder_->extract_msg();
+				return this->msg_builder_->extract_msg();
 			}
 
 			return {};
@@ -194,48 +108,20 @@ void async_connection<socket_type>::handle_read(const error_code& ec, std::size_
 
 		if(!msg.empty())
 		{
-			on_msg(id, msg);
+			this->on_msg(this->id, msg);
 		}
 	}
 	else
 	{
-		stop(ec);
+		this->stop(ec);
 	}
 }
+
 template <typename socket_type>
-void async_connection<socket_type>::await_output()
+void tcp_connection<socket_type>::start_write()
 {
-	if(stopped())
-	{
-		return;
-	}
-
-	auto check_if_empty = [&]() {
-		std::unique_lock<std::mutex> lock(guard_);
-		bool empty = output_queue_.empty();
-		if(empty)
-		{
-			// There are no messages that are ready to be sent. The actor goes to
-			// sleep by waiting on the non_empty_output_queue_ timer. When a new
-			// message is added, the timer will be modified and the actor will wake.
-			non_empty_output_queue_.expires_at(asio::steady_timer::time_point::max());
-			non_empty_output_queue_.async_wait(
-				strand_.wrap(std::bind(&async_connection::await_output, this->shared_from_this())));
-		}
-
-		return empty;
-	};
-
-	if(!check_if_empty())
-	{
-		start_write();
-	}
-}
-template <typename socket_type>
-void async_connection<socket_type>::start_write()
-{
-	std::lock_guard<std::mutex> lock(guard_);
-	const auto& to_wire = output_queue_.front();
+	std::lock_guard<std::mutex> lock(this->guard_);
+	const auto& to_wire = this->output_queue_.front();
 	std::vector<asio::const_buffer> buffers;
 	buffers.reserve(to_wire.size());
 	for(const auto& buf : to_wire)
@@ -244,28 +130,31 @@ void async_connection<socket_type>::start_write()
 	}
 
 	// Start an asynchronous operation to send all messages.
-	asio::async_write(*socket_, buffers,
-					  strand_.wrap(std::bind(&async_connection::handle_write, this->shared_from_this(),
+
+    // Here std::bind + shared_from_this is used because of the composite op async_*
+    // We want it to operate on valid data until the handler is called.
+	asio::async_write(*this->socket_, buffers,
+					  this->strand_.wrap(std::bind(&base_type::handle_write, this->shared_from_this(),
 											 std::placeholders::_1)));
 }
 template <typename socket_type>
-void async_connection<socket_type>::handle_write(const error_code& ec)
+void tcp_connection<socket_type>::handle_write(const error_code& ec)
 {
-	if(stopped())
+	if(this->stopped())
 	{
 		return;
 	}
 	if(!ec)
 	{
 		{
-			std::lock_guard<std::mutex> lock(guard_);
-			output_queue_.pop_front();
+			std::lock_guard<std::mutex> lock(this->guard_);
+			this->output_queue_.pop_front();
 		}
-		await_output();
+		this->await_output();
 	}
 	else
 	{
-		stop(ec);
+		this->stop(ec);
 	}
 }
 }

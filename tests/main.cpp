@@ -5,6 +5,25 @@
 #include <asiopp/service.h>
 #include <messengerpp/messenger.h>
 #include <netpp/logging.h>
+// enum_map contains pairs of enum value and value string for each enum
+// this shortcut allows us to use enum_map<whatever>.
+template <typename ENUM>
+using enum_map = std::map<ENUM, const std::string>;
+
+// This variable template will create a map for each enum type which is
+// instantiated with.
+template <typename ENUM>
+enum_map<ENUM> enum_values{};
+
+template <typename ENUM>
+void initialize() {}
+
+template <typename ENUM, typename ... args>
+void initialize(const ENUM value, const char *name, args ... tail)
+{
+    enum_values<ENUM>.emplace(value, name);
+    initialize<ENUM>(tail ...);
+}
 
 using namespace std::chrono_literals;
 
@@ -80,7 +99,7 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
 			net->send_msg(server_con, to_buffer("from_main"));
 		}
 	}
-    server_con = {0};
+    server_con = 0;
 	net->stop();
 }
 
@@ -122,14 +141,14 @@ int main(int argc, char* argv[])
 	}
     struct config
     {
-        std::string address = "::1"; // ff05:e671:2015::1";
+        std::string address = "::1";
         std::string multicast_address = "ff31::8000:1234";
-        uint16_t port = 2000;
         std::string domain = "/tmp/test";
         std::string cert_file = CERT_DIR "ca.pem";
         std::string cert_chain_file = CERT_DIR "server.pem";
         std::string private_key_file = CERT_DIR "server.pem";
         std::string dh_file = CERT_DIR "dh2048.pem";
+        uint16_t port = 2000;
     };
 
 	config conf;
@@ -142,17 +161,17 @@ int main(int argc, char* argv[])
     using creator = std::function<net::connector_ptr(config)>;
     std::vector<std::tuple<std::string, creator, creator>> creators =
     {
-        {
-            "UNICAST",
-            [](const config& conf)
-            {
-                return net::create_udp_unicast_client(conf.address, conf.port);
-            },
-            [](const config& conf)
-            {
-                return net::create_udp_unicast_server(conf.address, conf.port);
-            }
-        },
+//        {
+//            "UNICAST",
+//            [](const config& conf)
+//            {
+//                return net::create_udp_unicast_client(conf.address, conf.port);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_udp_unicast_server(conf.address, conf.port);
+//            }
+//        },
         {
             "MULTICAST",
             [](const config& conf)
@@ -226,6 +245,7 @@ int main(int argc, char* argv[])
 	{
         for(const auto& creator : creators)
         {
+            std::remove(conf.domain.c_str());
             const auto& name = std::get<0>(creator);
             const auto& client_creator = std::get<1>(creator);
             const auto& server_creator = std::get<2>(creator);

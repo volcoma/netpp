@@ -33,7 +33,7 @@ bool is_little_endian()
 template <typename T>
 size_t to_bytes(T data, uint8_t* dst)
 {
-	// endian_swap(&data);
+	endian_swap(&data);
 	const auto begin = reinterpret_cast<const uint8_t*>(std::addressof(data));
 
 	const auto sz = sizeof(T);
@@ -49,7 +49,7 @@ size_t from_bytes(T& data, const uint8_t* src)
 	auto dst = reinterpret_cast<uint8_t*>(std::addressof(data));
 	const auto sz = sizeof(T);
 	std::memcpy(dst, src, sz);
-	// endian_swap(&data);
+	endian_swap(&data);
 	return sz;
 }
 }
