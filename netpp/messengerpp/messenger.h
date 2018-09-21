@@ -41,11 +41,10 @@ private:
 
 	struct connection_info
 	{
-        connector::id_t connector_id = 0;
 		std::shared_ptr<void> sentinel;
 		connection_ptr connection;
 	};
-	void on_new_connection(connector::id_t connector_id, connection_ptr& connection, const user_info_ptr& info);
+	void on_new_connection(connection_ptr& connection, const user_info_ptr& info);
 
 	void on_disconnect(connection::id_t id, error_code ec, const user_info_ptr& info);
 	void on_msg(connection::id_t id, const byte_buffer& msg, const user_info_ptr& info);

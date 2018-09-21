@@ -30,18 +30,18 @@ connector::id_t messenger::add_connector(const connector_ptr& connector, on_conn
 
 	auto weak_this = weak_ptr(shared_from_this());
 
-	connector->on_connection_ready = [info, weak_this, connector_id](connection_ptr connection) {
+	connector->on_connection_ready = [info, weak_this](connection_ptr connection) {
 		auto shared_this = weak_this.lock();
 		if(!shared_this)
 		{
 			return;
 		}
 
-		shared_this->on_new_connection(connector_id, connection, info);
+		shared_this->on_new_connection(connection, info);
 	};
 
 	{
-		std::unique_lock<std::mutex> lock(guard_);
+		std::lock_guard<std::mutex> lock(guard_);
 		connectors_.emplace(connector->id, connector);
 	}
 	connector->start();
@@ -94,13 +94,13 @@ void messenger::disconnect(connection::id_t id)
 
 void messenger::remove_connector(connector::id_t id)
 {
-	std::unique_lock<std::mutex> lock(guard_);
+	std::lock_guard<std::mutex> lock(guard_);
 	connectors_.erase(id);
 }
 
 bool messenger::empty() const
 {
-	std::unique_lock<std::mutex> lock(guard_);
+	std::lock_guard<std::mutex> lock(guard_);
 	return connectors_.empty() && connections_.empty();
 }
 
@@ -108,7 +108,7 @@ void messenger::stop()
 {
     auto connections = [&]()
     {
-        std::unique_lock<std::mutex> lock(guard_);
+        std::lock_guard<std::mutex> lock(guard_);
         connectors_.clear();
         return std::move(connections_);
     }();
@@ -122,12 +122,11 @@ void messenger::stop()
 	}
 }
 
-void messenger::on_new_connection(connector::id_t connector_id, connection_ptr& connection, const user_info_ptr& info)
+void messenger::on_new_connection(connection_ptr& connection, const user_info_ptr& info)
 {
 	auto weak_this = weak_ptr(shared_from_this());
 
     connection_info conn_info;
-    conn_info.connector_id = connector_id;
 	conn_info.connection = connection;
 
     //sentinel to be used to monitor if connection has been removed
@@ -172,7 +171,7 @@ void messenger::on_new_connection(connector::id_t connector_id, connection_ptr& 
 void messenger::on_disconnect(connection::id_t id, error_code ec, const user_info_ptr& info)
 {
 	{
-		std::unique_lock<std::mutex> lock(guard_);
+		std::lock_guard<std::mutex> lock(guard_);
 		connections_.erase(id);
 	}
 	if(info->on_disconnect)

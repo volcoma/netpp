@@ -1,8 +1,8 @@
 #include <atomic>
 #include <chrono>
+#include <csignal>
 #include <iostream>
 #include <tuple>
-#include <csignal>
 
 #include <asiopp/service.h>
 #include <messengerpp/messenger.h>
@@ -20,57 +20,66 @@ std::string from_buffer(const std::vector<uint8_t>& buffer)
 	return {std::begin(buffer), std::end(buffer)};
 }
 static std::atomic<net::connection::id_t> server_con{0};
-void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients)
+void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients)
 {
 	auto net = net::get_network();
+	// clang-format off
 	net->add_connector(server,
-					   [](net::connection::id_t id) {
-						   net::log() << "server connected " << id;
-                           server_con = id;
-						   auto net = net::get_network();
-						   if(net)
-						   {
-							   net->send_msg(id, to_buffer("echo"));
-						   }
-					   },
-					   [](net::connection::id_t id, net::error_code ec) {
-						   net::log() << "server client " << id << " disconnected. reason : " << ec.message();
-					   },
-					   [](net::connection::id_t id, auto&& msg) {
-						   net::log() << "server client " << id << " on_msg: " << from_buffer(msg);
-						   std::this_thread::sleep_for(16ms);
-						   auto net = net::get_network();
-						   if(net)
-						   {
-							   net->send_msg(id, net::byte_buffer(msg));
-						   }
-					   });
+    [](net::connection::id_t id)
+    {
+        net::log() << "server connected " << id;
+        server_con = id;
+        auto net = net::get_network();
+        if(net)
+        {
+            net->send_msg(id, to_buffer("echo"));
+        }
+    },
+    [](net::connection::id_t id, net::error_code ec)
+    {
+        net::log() << "server client " << id << " disconnected. reason : " << ec.message();
+    },
+    [](net::connection::id_t id, auto&& msg)
+    {
+        net::log() << "server client " << id << " on_msg: " << from_buffer(msg);
+        std::this_thread::sleep_for(16ms);
+        auto net = net::get_network();
+        if(net)
+        {
+            net->send_msg(id, net::byte_buffer(msg));
+        }
+    });
+	// clang-format on
+
 	server.reset();
+
 	for(auto& client : clients)
 	{
+		// clang-format off
 		net->add_connector(client,
-						   [](net::connection::id_t id) {
-							   net::log() << "client " << id << " connected";
-
-						   },
-						   [](net::connection::id_t id, const net::error_code& ec) {
-							   net::log()
-								   << "client " << id << " disconnected. Reason : " << ec.message();
-						   },
-						   [](net::connection::id_t id, const auto& msg) {
-							   net::log() << "client " << id << " on_msg: " << from_buffer(msg);
-							   std::this_thread::sleep_for(16ms);
-							   auto net = net::get_network();
-							   if(net)
-							   {
-								   net->send_msg(id, net::byte_buffer(msg));
-							   }
-
-						   });
+		[](net::connection::id_t id)
+        {
+		    net::log() << "client " << id << " connected";
+		},
+		[](net::connection::id_t id, const net::error_code& ec)
+        {
+		    net::log() << "client " << id << " disconnected. Reason : " << ec.message();
+		},
+		[](net::connection::id_t id, const auto& msg)
+        {
+		    net::log() << "client " << id << " on_msg: " << from_buffer(msg);
+		    std::this_thread::sleep_for(16ms);
+		    auto net = net::get_network();
+		    if(net)
+		    {
+		 	   net->send_msg(id, net::byte_buffer(msg));
+		    }
+		});
+		// clang-format on
 	}
 	clients.clear();
 
-	auto end = std::chrono::steady_clock::now() + 100s;
+	auto end = std::chrono::steady_clock::now() + 10s;
 	while(!net->empty() && std::chrono::steady_clock::now() < end)
 	{
 		std::this_thread::sleep_for(16ms);
@@ -81,8 +90,13 @@ void test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients
 		{
 			net->send_msg(server_con, to_buffer("from_main"));
 		}
+
+		if(i % 100 == 0)
+		{
+			net->disconnect(server_con);
+		}
 	}
-    server_con = 0;
+	server_con = 0;
 	net->stop();
 }
 
@@ -122,20 +136,21 @@ int main(int argc, char* argv[])
 				  << "\n";
 		return 1;
 	}
-    struct config
-    {
-        std::string address = "::1";
-        std::string multicast_address = "ff31::8000:1234";
-        std::string domain = "/tmp/test";
-        std::string cert_file = CERT_DIR "ca.pem";
-        std::string cert_chain_file = CERT_DIR "server.pem";
-        std::string private_key_file = CERT_DIR "server.pem";
-        std::string dh_file = CERT_DIR "dh2048.pem";
-        uint16_t port = 11111;
-    };
+	struct config
+	{
+		std::string address = "::1";
+		std::string multicast_address = "ff31::8000:1234";
+		std::string domain = "/tmp/test";
+		std::string cert_file = CERT_DIR "ca.pem";
+		std::string cert_chain_file = CERT_DIR "server.pem";
+		std::string private_key_file = CERT_DIR "server.pem";
+		std::string dh_file = CERT_DIR "dh2048.pem";
+		uint16_t port = 11111;
+	};
 
 	config conf;
 	std::remove(conf.domain.c_str());
+	// clang-format off
 
     using creator = std::function<net::connector_ptr(config)>;
     std::vector<std::tuple<std::string, creator, creator>> creators =
@@ -218,26 +233,27 @@ int main(int argc, char* argv[])
             }
         }
     };
-    std::signal(SIGINT, [](int)
-    {
-        net::deinit_messengers();
-        net::deinit_services();
-        std::exit(0);
-    });
+	// clang-format on
+	std::signal(SIGINT, [](int) {
+		net::deinit_messengers();
+		net::deinit_services();
+		std::exit(0);
+	});
 
-    net::set_logger([](const std::string& msg) { std::cout << msg << std::endl; });
+	net::set_logger([](const std::string& msg) { std::cout << msg << std::endl; });
 	net::init_services(std::thread::hardware_concurrency());
 
 	try
 	{
-        for(const auto& creator : creators)
-        {
-            std::remove(conf.domain.c_str());
-            const auto& name = std::get<0>(creator);
-            const auto& client_creator = std::get<1>(creator);
-            const auto& server_creator = std::get<2>(creator);
-
-            net::log() << name;
+		for(const auto& creator : creators)
+		{
+			std::remove(conf.domain.c_str());
+			const auto& name = std::get<0>(creator);
+			const auto& client_creator = std::get<1>(creator);
+			const auto& server_creator = std::get<2>(creator);
+			net::log() << "-------------";
+			net::log() << name;
+			net::log() << "-------------";
 
 			std::vector<net::connector_ptr> clients;
 			if(is_client)
@@ -255,7 +271,7 @@ int main(int argc, char* argv[])
 			{
 				server = server_creator(conf);
 			}
-			test(std::move(server), std::move(clients));
+			run_test(std::move(server), std::move(clients));
 		}
 	}
 	catch(std::exception& e)
