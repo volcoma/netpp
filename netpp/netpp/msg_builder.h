@@ -15,6 +15,9 @@ using data_channel = uint64_t;
 
 struct msg_builder
 {
+    using creator = std::function<std::unique_ptr<msg_builder>()>;
+
+
 	virtual ~msg_builder() = default;
 
 	enum class op_type
@@ -59,9 +62,20 @@ struct msg_builder
 	/// Extracts the ready message.
 	//-----------------------------------------------------------------------------
 	virtual byte_buffer&& extract_msg() = 0;
+
+    template<typename T>
+    static creator get_creator()
+    {
+        return []()
+        {
+            return std::make_unique<T>();
+        };
+    }
+
 };
 
 using msg_builder_ptr = std::unique_ptr<msg_builder>;
+
 
 class multi_buffer_builder : public msg_builder
 {

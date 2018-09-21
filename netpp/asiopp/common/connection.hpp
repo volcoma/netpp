@@ -62,8 +62,9 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Constructor of connection accepting a ready socket.
 	//-----------------------------------------------------------------------------
-	asio_connection(std::shared_ptr<socket_type> socket, asio::io_service& context);
-
+	asio_connection(std::shared_ptr<socket_type> socket,
+                    const msg_builder::creator& builder_creator,
+                    asio::io_service& context);
 	//-----------------------------------------------------------------------------
 	/// Starts the connection. Awaiting input and output
 	//-----------------------------------------------------------------------------
@@ -121,6 +122,7 @@ protected:
 	mutable std::mutex guard_;
 
 	/// deque to avoid elements invalidation when resizing
+	/// Access to this member should be guarded by a lock
 	std::deque<std::vector<byte_buffer>> output_queue_;
 
 	/// a strand for async socket callback synchronization
@@ -132,14 +134,17 @@ protected:
 	/// steady_timer as an asynchronous condition variable.
 	/// The steady_timer will be signalled whenever the
 	/// output queue is non-empty.
+	/// Access to this member should be guarded by a lock
 	asio::steady_timer non_empty_output_queue_;
 
-	/// a security flag to guard us.
+	/// a security flag to tell us if we are still connected.
 	std::atomic<bool> connected_{false};
 };
 
 template <typename socket_type>
-asio_connection<socket_type>::asio_connection(std::shared_ptr<socket_type> socket, asio::io_service& context)
+asio_connection<socket_type>::asio_connection(std::shared_ptr<socket_type> socket,
+                                              const msg_builder::creator& builder_creator,
+                                              asio::io_service& context)
 	: strand_(context)
 	, socket_(std::move(socket))
 	, non_empty_output_queue_(context)
@@ -150,7 +155,7 @@ asio_connection<socket_type>::asio_connection(std::shared_ptr<socket_type> socke
 	// actor stays asleep until a message is put into the queue.
 	non_empty_output_queue_.expires_at(asio::steady_timer::time_point::max());
 
-	builder = std::make_unique<multi_buffer_builder>();
+    builder = builder_creator();
 }
 
 template <typename socket_type>
@@ -163,32 +168,44 @@ void asio_connection<socket_type>::start()
 template <typename socket_type>
 void asio_connection<socket_type>::stop(const error_code& ec)
 {
-	{
-		std::lock_guard<std::mutex> lock(guard_);
-		non_empty_output_queue_.cancel();
-	}
-
+    {
+        std::lock_guard<std::mutex> lock(guard_);
+        non_empty_output_queue_.cancel();
+        auto& service = socket_->get_io_service();
+        service.post(strand_.wrap([socket = socket_]()
+        {
+            if(socket->lowest_layer().is_open())
+            {
+                error_code ec;
+                socket->lowest_layer().shutdown(asio::socket_base::shutdown_both, ec);
+                socket->lowest_layer().close(ec);
+            }
+        }));
+    }
 	if(connected_.exchange(false))
 	{
 		for(const auto& callback : on_disconnect)
 		{
 			callback(id, ec ? ec : asio::error::make_error_code(asio::error::connection_aborted));
 		}
-	}
+    }
+
 }
+
 template <typename socket_type>
 bool asio_connection<socket_type>::stopped() const
 {
-	std::lock_guard<std::mutex> lock(guard_);
-	return !socket_->lowest_layer().is_open();
+	//std::lock_guard<std::mutex> lock(guard_);
+	return !connected_;// || !socket_->lowest_layer().is_open();
 }
 
 template <typename socket_type>
 void asio_connection<socket_type>::send_msg(byte_buffer&& msg, data_channel channel)
 {
-	std::lock_guard<std::mutex> lock(guard_);
+    //we assume this is thread safe as it is const.
 	auto buffers = builder->build(std::move(msg), channel);
 
+    std::lock_guard<std::mutex> lock(guard_);
 	output_queue_.emplace_back(std::move(buffers));
 
 	// Signal that the output queue contains messages. Modifying the expiry
@@ -205,7 +222,7 @@ void asio_connection<socket_type>::await_output()
 	}
 
 	auto check_if_empty = [&]() {
-		std::unique_lock<std::mutex> lock(guard_);
+		std::lock_guard<std::mutex> lock(guard_);
 		bool empty = output_queue_.empty();
 		if(empty)
 		{

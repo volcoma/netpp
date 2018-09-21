@@ -60,8 +60,12 @@ public:
 template <typename socket_type>
 void tcp_connection<socket_type>::start_read()
 {
-	std::lock_guard<std::mutex> lock(this->guard_);
-	// Start an asynchronous operation to read a certain number of bytes.
+    //NOTE! Thread safety:
+    //the builder should only be used for reads
+    //which are already synchronized via the explicit 'strand'
+	//std::lock_guard<std::mutex> lock(this->guard_);
+
+
 	auto operation = this->builder->get_next_operation();
 	auto& work_buffer = this->builder->get_work_buffer();
 	auto offset = work_buffer.size();
@@ -69,6 +73,7 @@ void tcp_connection<socket_type>::start_read()
 
 	// Here std::bind + shared_from_this is used because of the composite op async_*
 	// We want it to operate on valid data until the handler is called.
+	// Start an asynchronous operation to read a certain number of bytes.
 	asio::async_read(*this->socket_, asio::buffer(work_buffer.data() + offset, operation.bytes),
 					 asio::transfer_exactly(operation.bytes),
 					 this->strand_.wrap(std::bind(&base_type::handle_read, this->shared_from_this(),
@@ -84,7 +89,11 @@ void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t 
 	if(!ec)
 	{        
 		auto extract_msg = [&]() -> byte_buffer {
-			std::unique_lock<std::mutex> lock(this->guard_);
+			//NOTE! Thread safety:
+            //the builder should only be used for reads
+            //which are already synchronized via the explicit 'strand'
+            //std::lock_guard<std::mutex> lock(this->guard_);
+
 			bool is_ready = this->builder->process_operation(size);
 			if(is_ready)
 			{
@@ -97,8 +106,6 @@ void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t 
 
 		auto msg = extract_msg();
 
-		start_read();
-
 		if(!msg.empty())
 		{
 			for(const auto& callback : this->on_msg)
@@ -106,6 +113,8 @@ void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t 
 				callback(this->id, msg);
 			}
 		}
+
+        start_read();
 	}
 	else
 	{
@@ -116,19 +125,22 @@ void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t 
 template <typename socket_type>
 void tcp_connection<socket_type>::start_write()
 {
-	std::lock_guard<std::mutex> lock(this->guard_);
-	const auto& to_wire = this->output_queue_.front();
-	std::vector<asio::const_buffer> buffers;
-	buffers.reserve(to_wire.size());
-	for(const auto& buf : to_wire)
-	{
-		buffers.emplace_back(asio::buffer(buf));
-	}
-
-	// Start an asynchronous operation to send all messages.
+    auto buffers = [&]()
+    {
+        std::unique_lock<std::mutex> lock(this->guard_);
+        const auto& to_wire = this->output_queue_.front();
+        std::vector<asio::const_buffer> buffers;
+        buffers.reserve(to_wire.size());
+        for(const auto& buf : to_wire)
+        {
+            buffers.emplace_back(asio::buffer(buf));
+        }
+        return buffers;
+    }();
 
 	// Here std::bind + shared_from_this is used because of the composite op async_*
 	// We want it to operate on valid data until the handler is called.
+	// Start an asynchronous operation to send all messages.
 	asio::async_write(*this->socket_, buffers,
 					  this->strand_.wrap(std::bind(&base_type::handle_write, this->shared_from_this(),
 												   std::placeholders::_1)));

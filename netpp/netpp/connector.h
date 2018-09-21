@@ -15,6 +15,7 @@ struct connector
 {
 	using id_t = uint64_t;
 	using on_connection_ready_t = std::function<void(connection_ptr)>;
+    using msg_builder_creator = msg_builder::creator;
 
 	connector();
 	virtual ~connector() = default;
@@ -27,6 +28,7 @@ struct connector
 	/// callback for when there is a connection ready
 	on_connection_ready_t on_connection_ready;
 
+    msg_builder_creator create_builder;
 	/// connector id
 	const id_t id;
 };

@@ -99,8 +99,9 @@ inline void basic_ssl_client<protocol_type>::start()
 											// We need to close the socket used in the previous connection
 											// attempt before starting a new one.
 											ssl_socket.reset();
+
 											// Try again.
-											shared_this->start();
+											shared_this->restart();
 										}
 
 										// Otherwise we have successfully established a connection.

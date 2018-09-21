@@ -117,7 +117,7 @@ inline void basic_server<protocol_type>::on_handshake_complete(std::shared_ptr<s
 	log() << "Handshake server::" << socket->lowest_layer().local_endpoint()
 		  << " -> client::" << socket->lowest_layer().remote_endpoint() << " completed.";
 
-	auto session = std::make_shared<tcp_connection<socket_type>>(socket, io_context_);
+	auto session = std::make_shared<tcp_connection<socket_type>>(socket, create_builder, io_context_);
 	if(on_connection_ready)
 	{
 		on_connection_ready(session);

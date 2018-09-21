@@ -67,7 +67,7 @@ size_t multi_buffer_builder::get_header_size()
 
 size_t multi_buffer_builder::get_total_header_size()
 {
-	return sizeof(header_size_t) + get_header_size();
+    return sizeof(header_size_t) + get_header_size();
 }
 
 std::vector<byte_buffer> multi_buffer_builder::build(byte_buffer&& msg, data_channel channel) const

@@ -20,10 +20,21 @@ std::string from_buffer(const std::vector<uint8_t>& buffer)
 	return {std::begin(buffer), std::end(buffer)};
 }
 static std::atomic<net::connection::id_t> server_con{0};
+
+void setup_connector(net::connector_ptr& connector)
+{
+    if(connector)
+    {
+        connector->create_builder = net::msg_builder::get_creator<net::single_buffer_builder>();
+    }
+}
+
+
 void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients)
 {
 	auto net = net::get_network();
 	// clang-format off
+    setup_connector(server);
 	net->add_connector(server,
     [](net::connection::id_t id)
     {
@@ -38,6 +49,10 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
     [](net::connection::id_t id, net::error_code ec)
     {
         net::log() << "server client " << id << " disconnected. reason : " << ec.message();
+        if(id == server_con)
+        {
+            server_con = 0;
+        }
     },
     [](net::connection::id_t id, auto&& msg)
     {
@@ -55,6 +70,7 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 
 	for(auto& client : clients)
 	{
+        setup_connector(client);
 		// clang-format off
 		net->add_connector(client,
 		[](net::connection::id_t id)
@@ -79,7 +95,7 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 	}
 	clients.clear();
 
-	auto end = std::chrono::steady_clock::now() + 10s;
+	auto end = std::chrono::steady_clock::now() + 5s;
 	while(!net->empty() && std::chrono::steady_clock::now() < end)
 	{
 		std::this_thread::sleep_for(16ms);
@@ -234,45 +250,45 @@ int main(int argc, char* argv[])
         }
     };
 	// clang-format on
-	std::signal(SIGINT, [](int) {
-		net::deinit_messengers();
-		net::deinit_services();
-		std::exit(0);
-	});
 
 	net::set_logger([](const std::string& msg) { std::cout << msg << std::endl; });
 	net::init_services(std::thread::hardware_concurrency());
 
 	try
 	{
-		for(const auto& creator : creators)
-		{
-			std::remove(conf.domain.c_str());
-			const auto& name = std::get<0>(creator);
-			const auto& client_creator = std::get<1>(creator);
-			const auto& server_creator = std::get<2>(creator);
-			net::log() << "-------------";
-			net::log() << name;
-			net::log() << "-------------";
+        for(int i = 0; i < 20; ++i)
+        {
 
-			std::vector<net::connector_ptr> clients;
-			if(is_client)
-			{
-				// only 1 of them will work with unicast
-				for(int i = 0; i < count; ++i)
-				{
-					clients.emplace_back();
-					auto& client = clients.back();
-					client = client_creator(conf);
-				}
-			}
-			net::connector_ptr server;
-			if(is_server)
-			{
-				server = server_creator(conf);
-			}
-			run_test(std::move(server), std::move(clients));
-		}
+            for(const auto& creator : creators)
+            {
+                std::remove(conf.domain.c_str());
+                const auto& name = std::get<0>(creator);
+                const auto& client_creator = std::get<1>(creator);
+                const auto& server_creator = std::get<2>(creator);
+                net::log() << "-------------";
+                net::log() << name;
+                net::log() << "-------------";
+
+                std::vector<net::connector_ptr> clients;
+                if(is_client)
+                {
+                    // only 1 of them will work with unicast
+                    for(int i = 0; i < count; ++i)
+                    {
+                        clients.emplace_back();
+                        auto& client = clients.back();
+                        client = client_creator(conf);
+                    }
+                }
+                net::connector_ptr server;
+                if(is_server)
+                {
+                    server = server_creator(conf);
+                }
+                run_test(std::move(server), std::move(clients));
+            }
+
+        }
 	}
 	catch(std::exception& e)
 	{

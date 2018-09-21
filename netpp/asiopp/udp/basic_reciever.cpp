@@ -55,7 +55,7 @@ void basic_reciever::start()
 		}
 	}
 
-	auto session = std::make_shared<udp_connection>(std::move(socket), io_context_);
+	auto session = std::make_shared<udp_connection>(std::move(socket), create_builder, io_context_);
 	session->set_endpoint(listen_endpoint, true, false);
 
 	if(on_connection_ready)

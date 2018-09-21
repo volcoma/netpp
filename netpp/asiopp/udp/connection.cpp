@@ -35,10 +35,10 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 	if(!ec)
 	{
 		using namespace std::chrono_literals;
-		std::unique_lock<std::mutex> lock(guard_);
 
 		while(true)
 		{
+            //std::unique_lock<std::mutex> lock(guard_);
 			auto available = socket_->lowest_layer().available();
 			if(available == 0)
 			{
@@ -53,10 +53,14 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 				break;
 			}
 
+            //lock.unlock();
+
 			size_t processed = 0;
 			while(processed < available)
 			{
-				// Start an asynchronous operation to read a certain number of bytes.
+                //NOTE! Thread safety:
+                //the builder should only be used for reads
+                //which are already synchronized via the explicit 'strand'
 				auto operation = builder->get_next_operation();
 
 				auto left = available - processed;
@@ -78,11 +82,8 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 
 					for(const auto& callback : on_msg)
 					{
-						lock.unlock();
 
 						callback(id, msg);
-
-						lock.lock();
 					}
 				}
 
@@ -106,18 +107,23 @@ void udp_connection::start_write()
 		output_queue_.clear();
 		return;
 	}
-	std::lock_guard<std::mutex> lock(guard_);
-	const auto& to_wire = output_queue_.front();
-	std::vector<asio::const_buffer> buffers;
-	buffers.reserve(to_wire.size());
-	for(const auto& buf : to_wire)
-	{
-		buffers.emplace_back(asio::buffer(buf));
-	}
 
-	// Start an asynchronous operation to send all messages.
+    auto buffers = [&]()
+    {
+        std::unique_lock<std::mutex> lock(this->guard_);
+        const auto& to_wire = this->output_queue_.front();
+        std::vector<asio::const_buffer> buffers;
+        buffers.reserve(to_wire.size());
+        for(const auto& buf : to_wire)
+        {
+            buffers.emplace_back(asio::buffer(buf));
+        }
+        return buffers;
+    }();
+
 	// Here std::bind + shared_from_this is used because of the composite op async_*
 	// We want it to operate on valid data until the handler is called.
+	// Start an asynchronous operation to send all messages.
 	socket_->async_send_to(
 		buffers, endpoint_,
 		strand_.wrap(std::bind(&base_type::handle_write, this->shared_from_this(), std::placeholders::_1)));

@@ -1,7 +1,7 @@
 #pragma once
 #include "basic_server.hpp"
 #include "compatibility.hpp"
-
+#include <asio/deadline_timer.hpp>
 #include <asio/ssl.hpp>
 namespace net
 {
@@ -94,6 +94,9 @@ inline void basic_ssl_server<protocol_type>::start()
 											// attempt
 											// before starting a new one.
 											ssl_socket.reset();
+
+                                            using namespace std::chrono_literals;
+                                            std::this_thread::sleep_for(500ms);
 											// Try again.
 											shared_this->start();
 										}
