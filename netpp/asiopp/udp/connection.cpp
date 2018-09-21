@@ -38,8 +38,21 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 
 		while(true)
 		{
+            if(stopped())
+            {
+                return;
+            }
+
             //std::unique_lock<std::mutex> lock(guard_);
-			auto available = socket_->lowest_layer().available();
+            error_code av;
+			auto available = socket_->lowest_layer().available(av);
+
+            if(av)
+            {
+                stop(av);
+                return;
+            }
+
 			if(available == 0)
 			{
 				std::this_thread::yield();
@@ -110,7 +123,7 @@ void udp_connection::start_write()
 
     auto buffers = [&]()
     {
-        std::unique_lock<std::mutex> lock(this->guard_);
+        std::lock_guard<std::mutex> lock(this->guard_);
         const auto& to_wire = this->output_queue_.front();
         std::vector<asio::const_buffer> buffers;
         buffers.reserve(to_wire.size());

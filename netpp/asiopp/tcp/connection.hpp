@@ -127,7 +127,7 @@ void tcp_connection<socket_type>::start_write()
 {
     auto buffers = [&]()
     {
-        std::unique_lock<std::mutex> lock(this->guard_);
+        std::lock_guard<std::mutex> lock(this->guard_);
         const auto& to_wire = this->output_queue_.front();
         std::vector<asio::const_buffer> buffers;
         buffers.reserve(to_wire.size());
