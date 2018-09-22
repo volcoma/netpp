@@ -95,7 +95,6 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 
 					for(const auto& callback : on_msg)
 					{
-
 						callback(id, msg);
 					}
 				}
