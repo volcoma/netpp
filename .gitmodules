@@ -1,6 +1,3 @@
 [submodule "3rdparty/itc"]
 	path = 3rdparty/itc
 	url = https://github.com/volcoma/itc.git
-[submodule "3rdparty/asio"]
-	path = 3rdparty/asio
-	url = https://github.com/chriskohlhoff/asio.git
