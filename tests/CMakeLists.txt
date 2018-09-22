@@ -14,4 +14,4 @@ set_target_properties(${target_name} PROPERTIES
     CXX_EXTENSIONS NO
 )
 
-target_compile_definitions(${target_name} PUBLIC CERT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../certificates/")
+target_compile_definitions(${target_name} PUBLIC CERT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/certificates/")

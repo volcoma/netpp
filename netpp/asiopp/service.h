@@ -31,7 +31,8 @@ connector_ptr create_tcp_client(const std::string& host, uint16_t port);
 /// Creates a secure tcp v4/v6 server
 //-----------------------------------------------------------------------------
 connector_ptr create_tcp_ssl_server(uint16_t port, const std::string& cert_chain_file,
-									const std::string& private_key_file, const std::string& dh_file);
+									const std::string& private_key_file, const std::string& dh_file,
+									const std::string& private_key_password = "");
 
 //-----------------------------------------------------------------------------
 /// Creates a secure tcp v4/v6 client
@@ -55,7 +56,8 @@ connector_ptr create_tcp_local_client(const std::string& file);
 /// Only available on platforms that support unix domain sockets.
 //-----------------------------------------------------------------------------
 connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::string& cert_chain_file,
-										  const std::string& private_key_file, const std::string& dh_file);
+										  const std::string& private_key_file, const std::string& dh_file,
+										  const std::string& private_key_password = "");
 
 //-----------------------------------------------------------------------------
 /// Creates a secure tcp local(domain socket) client.

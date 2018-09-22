@@ -26,7 +26,7 @@ public:
 	//-----------------------------------------------------------------------------
 	basic_ssl_server(asio::io_service& io_context, const protocol_endpoint& listen_endpoint,
 					 const std::string& cert_chain_file, const std::string& private_key_file,
-					 const std::string& dh_file);
+					 const std::string& dh_file, const std::string& private_key_password = "");
 
 	//-----------------------------------------------------------------------------
 	/// Starts the server attempting to accept incomming connections.
@@ -41,7 +41,7 @@ protected:
 	//-----------------------------------------------------------------------------
 	std::string get_private_key_password() const;
 	asio::ssl::context context_;
-	std::string password_ = "test";
+	std::string password_;
 };
 
 template <typename protocol_type>
@@ -49,9 +49,11 @@ inline basic_ssl_server<protocol_type>::basic_ssl_server(asio::io_service& io_co
 														 const protocol_endpoint& listen_endpoint,
 														 const std::string& cert_chain_file,
 														 const std::string& private_key_file,
-														 const std::string& dh_file)
+														 const std::string& dh_file,
+                                                         const std::string& private_key_password)
 	: base_type(io_context, listen_endpoint)
 	, context_(asio::ssl::context::sslv23)
+    , password_(private_key_password)
 {
 	context_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2 |
 						 asio::ssl::context::single_dh_use);
@@ -78,40 +80,42 @@ inline void basic_ssl_server<protocol_type>::start()
 		auto ssl_socket = compatibility::make_ssl_socket(std::move(*socket), context_);
 
 		// Start the asynchronous handshake operation.
+		// clang-format off
 		ssl_socket->async_handshake(asio::ssl::stream_base::server,
-									[weak_this, ssl_socket](const error_code& ec) mutable {
-										if(ec)
-										{
-											log() << "handshake error: " << ec.message();
+		[weak_this, ssl_socket](const error_code& ec) mutable {
+			if(ec)
+			{
+				log() << "handshake error: " << ec.message();
 
-											auto shared_this = weak_this.lock();
-											if(!shared_this)
-											{
-												return;
-											}
+				auto shared_this = weak_this.lock();
+				if(!shared_this)
+				{
+					return;
+				}
 
-											// We need to close the socket used in the previous connection
-											// attempt
-											// before starting a new one.
-											ssl_socket.reset();
+				// We need to close the socket used in the previous connection
+				// attempt
+				// before starting a new one.
+				ssl_socket.reset();
 
-                                            using namespace std::chrono_literals;
-                                            std::this_thread::sleep_for(500ms);
-											// Try again.
-											shared_this->start();
-										}
+				using namespace std::chrono_literals;
+				std::this_thread::sleep_for(500ms);
+				// Try again.
+				shared_this->start();
+			}
 
-										// Otherwise we have successfully established a connection.
-										else
-										{
-											auto shared_this = weak_this.lock();
-											if(!shared_this)
-											{
-												return;
-											}
-											shared_this->on_handshake_complete(ssl_socket);
-										}
-									});
+			// Otherwise we have successfully established a connection.
+			else
+			{
+				auto shared_this = weak_this.lock();
+				if(!shared_this)
+				{
+					return;
+				}
+				shared_this->on_handshake_complete(ssl_socket);
+			}
+		});
+		// clang-format on
 	};
 
 	this->async_accept(socket, std::move(on_connection_established));

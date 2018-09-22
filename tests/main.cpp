@@ -20,28 +20,29 @@ std::string from_buffer(const std::vector<uint8_t>& buffer)
 }
 struct test_stream
 {
-    test_stream() = default;
-    test_stream(net::byte_buffer&& buf)
-        : buffer(std::move(buf))
-    {}
+	test_stream() = default;
+	test_stream(net::byte_buffer&& buf)
+		: buffer(std::move(buf))
+	{
+	}
 
-    test_stream& operator<<(const std::string& msg)
-    {
-        buffer = to_buffer(msg);
-        return *this;
-    }
-    test_stream& operator>>(std::string& msg)
-    {
-        msg = from_buffer(buffer);
-        return *this;
-    }
+	test_stream& operator<<(const std::string& msg)
+	{
+		buffer = to_buffer(msg);
+		return *this;
+	}
+	test_stream& operator>>(std::string& msg)
+	{
+		msg = from_buffer(buffer);
+		return *this;
+	}
 
-    net::byte_buffer buffer;
+	net::byte_buffer buffer;
 };
 
-decltype (auto) get_buffer(test_stream& stream)
+decltype(auto) get_buffer(test_stream& stream)
 {
-    return std::move(stream.buffer);
+	return std::move(stream.buffer);
 }
 
 static std::atomic<net::connection::id_t> server_con{0};
@@ -184,6 +185,7 @@ int main(int argc, char* argv[])
 		std::string cert_file = CERT_DIR "ca.pem";
 		std::string cert_chain_file = CERT_DIR "server.pem";
 		std::string private_key_file = CERT_DIR "server.pem";
+		std::string private_key_pass = "test";
 		std::string dh_file = CERT_DIR "dh2048.pem";
 		uint16_t port = 11111;
 	};
@@ -247,7 +249,7 @@ int main(int argc, char* argv[])
             },
             [](const config& conf)
             {
-                return net::create_tcp_ssl_server(conf.port, conf.cert_chain_file, conf.private_key_file, conf.dh_file);
+                return net::create_tcp_ssl_server(conf.port, conf.cert_chain_file, conf.private_key_file, conf.dh_file, conf.private_key_pass);
             }
         },
         {
@@ -269,7 +271,7 @@ int main(int argc, char* argv[])
             },
             [](const config& conf)
             {
-                return net::create_tcp_ssl_local_server(conf.domain, conf.cert_chain_file, conf.private_key_file, conf.dh_file);
+                return net::create_tcp_ssl_local_server(conf.domain, conf.cert_chain_file, conf.private_key_file, conf.dh_file, conf.private_key_pass);
             }
         }
     };

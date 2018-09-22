@@ -120,13 +120,14 @@ connector_ptr create_tcp_client(const std::string& host, uint16_t port)
 }
 
 connector_ptr create_tcp_ssl_server(uint16_t port, const std::string& cert_chain_file,
-									const std::string& private_key_file, const std::string& dh_file)
+									const std::string& private_key_file, const std::string& dh_file,
+                                    const std::string& private_key_password)
 {
 	using type = net::tcp::basic_ssl_server<asio::ip::tcp>;
 
 	auto& net_context = get_io_context();
 	type::protocol_endpoint endpoint(type::protocol::v6(), port);
-	return std::make_shared<type>(net_context, endpoint, cert_chain_file, private_key_file, dh_file);
+	return std::make_shared<type>(net_context, endpoint, cert_chain_file, private_key_file, dh_file, private_key_password);
 }
 
 connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const std::string& cert_file)
@@ -175,13 +176,14 @@ connector_ptr create_tcp_local_client(const std::string& file)
 }
 
 connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::string& cert_chain_file,
-										  const std::string& private_key_file, const std::string& dh_file)
+										  const std::string& private_key_file, const std::string& dh_file,
+                                          const std::string& private_key_password)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
 	using type = net::tcp::basic_ssl_server<asio::local::stream_protocol>;
 	auto& net_context = get_io_context();
 	type::protocol_endpoint endpoint(file);
-	return std::make_shared<type>(net_context, endpoint, cert_chain_file, private_key_file, dh_file);
+	return std::make_shared<type>(net_context, endpoint, cert_chain_file, private_key_file, dh_file, private_key_password);
 #else
 	(void)file;
 	(void)cert_chain_file;
