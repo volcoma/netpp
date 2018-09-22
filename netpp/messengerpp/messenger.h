@@ -19,14 +19,11 @@ public:
 	connector::id_t add_connector(const connector_ptr& connector, on_connect_t on_connect,
 								  on_disconnect_t on_disconnect, on_msg_t on_msg);
 	void send_msg(connection::id_t id, byte_buffer&& msg);
-
 	void disconnect(connection::id_t id);
 	void remove_connector(connector::id_t id);
-
 	void stop();
 
 	bool empty() const;
-
 private:
 	messenger() = default;
 
@@ -45,7 +42,7 @@ private:
 		connection_ptr connection;
 	};
 	void on_new_connection(connection_ptr& connection, const user_info_ptr& info);
-
+    void on_connect(connection::id_t id, connection_info&& conn_info, const user_info_ptr& info);
 	void on_disconnect(connection::id_t id, error_code ec, const user_info_ptr& info);
 	void on_msg(connection::id_t id, const byte_buffer& msg, const user_info_ptr& info);
 

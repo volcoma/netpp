@@ -59,10 +59,10 @@ void messenger::send_msg(connection::id_t id, byte_buffer&& msg)
 	}
 	auto& conn_info = conn_it->second;
 
-    // get a copy so that we can unlock
-    // and work on unlocked mutex
-    // after the unlock we may be the last
-    // user of this connection.
+	// get a copy so that we can unlock
+	// and work on unlocked mutex
+	// after the unlock we may be the last
+	// user of this connection.
 	auto connection = conn_info.connection;
 
 	lock.unlock();
@@ -81,10 +81,10 @@ void messenger::disconnect(connection::id_t id)
 	}
 	auto& conn_info = conn_it->second;
 
-    // get a copy so that we can unlock
-    // and work on unlocked mutex
-    // after the unlock we may be the last
-    // user of this connection.
+	// get a copy so that we can unlock
+	// and work on unlocked mutex
+	// after the unlock we may be the last
+	// user of this connection.
 	auto connection = conn_info.connection;
 
 	lock.unlock();
@@ -106,19 +106,19 @@ bool messenger::empty() const
 
 void messenger::stop()
 {
-    auto connections = [&]()
-    {
-        std::lock_guard<std::mutex> lock(guard_);
-        connectors_.clear();
-        return std::move(connections_);
-    }();
+	auto connections = [&]() {
+		std::lock_guard<std::mutex> lock(guard_);
+		connectors_.clear();
+		return std::move(connections_);
+	}();
 
-    //safely iterate the extracted connections
+	// safely iterate the extracted connections
 	for(auto& kvp : connections)
 	{
 		auto& conn_info = kvp.second;
 		auto& connection = conn_info.connection;
 		connection->stop({});
+        connection.reset();
 	}
 }
 
@@ -126,13 +126,13 @@ void messenger::on_new_connection(connection_ptr& connection, const user_info_pt
 {
 	auto weak_this = weak_ptr(shared_from_this());
 
-    connection_info conn_info;
+	connection_info conn_info;
 	conn_info.connection = connection;
 
-    //sentinel to be used to monitor if connection has been removed
-    //instead of expensive lookup into the connections container.
-    //this can also be used to
-    conn_info.sentinel = std::make_shared<connection::id_t>(connection->id);
+	// sentinel to be used to monitor if connection has been removed
+	// instead of expensive lookup into the connections container.
+	// this can also be used to
+	conn_info.sentinel = std::make_shared<connection::id_t>(connection->id);
 
 	connection->on_disconnect.emplace_back([weak_this, info](connection::id_t id, const error_code& ec) {
 		auto shared_this = weak_this.lock();
@@ -144,7 +144,7 @@ void messenger::on_new_connection(connection_ptr& connection, const user_info_pt
 		shared_this->on_disconnect(id, ec, info);
 	});
 
-    auto sentinel = std::weak_ptr<void>(conn_info.sentinel);
+	auto sentinel = std::weak_ptr<void>(conn_info.sentinel);
 	connection->on_msg.emplace_back([weak_this, info, sentinel](connection::id_t id, const byte_buffer& msg) {
 		auto shared_this = weak_this.lock();
 		if(!shared_this || sentinel.expired())
@@ -155,16 +155,21 @@ void messenger::on_new_connection(connection_ptr& connection, const user_info_pt
 		shared_this->on_msg(id, msg, info);
 	});
 
-	{
-		std::lock_guard<std::mutex> lock(guard_);
-		connections_.emplace(connection->id, std::move(conn_info));
-	}
+	on_connect(connection->id, std::move(conn_info), info);
 
 	connection->start();
+}
+
+void messenger::on_connect(connection::id_t id, connection_info&& conn_info, const user_info_ptr& info)
+{
+	{
+		std::lock_guard<std::mutex> lock(guard_);
+		connections_.emplace(id, std::move(conn_info));
+	}
 
 	if(info->on_connect)
 	{
-		info->on_connect(connection->id);
+		info->on_connect(id);
 	}
 }
 
