@@ -9,15 +9,7 @@
 #include <netpp/logging.h>
 
 using namespace std::chrono_literals;
-std::vector<uint8_t> to_buffer(const std::string& str)
-{
-	return {std::begin(str), std::end(str)};
-}
 
-std::string from_buffer(const std::vector<uint8_t>& buffer)
-{
-	return {std::begin(buffer), std::end(buffer)};
-}
 struct test_stream
 {
 	test_stream() = default;
@@ -37,12 +29,40 @@ struct test_stream
 		return *this;
 	}
 
+    std::vector<uint8_t> to_buffer(const std::string& str)
+    {
+        return {std::begin(str), std::end(str)};
+    }
+
+    std::string from_buffer(const std::vector<uint8_t>& buffer)
+    {
+        return {std::begin(buffer), std::end(buffer)};
+    }
+
 	net::byte_buffer buffer;
 };
 
-decltype(auto) get_buffer(test_stream& stream)
+namespace net
 {
-	return std::move(stream.buffer);
+
+template <typename T>
+struct serializer<T, test_stream, test_stream>
+{
+	static byte_buffer to_buffer(const T& msg)
+	{
+		test_stream serializer;
+		serializer << msg;
+		return serializer.buffer;
+	}
+
+	static T from_buffer(byte_buffer&& buffer)
+	{
+		test_stream deserializer(std::move(buffer));
+		T msg;
+		deserializer >> msg;
+		return msg;
+	}
+};
 }
 
 static std::atomic<net::connection::id_t> server_con{0};

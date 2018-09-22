@@ -15,7 +15,6 @@ std::mutex& get_messengers_mutex()
 	return s_mutex;
 }
 
-
 void deinit_messengers()
 {
 	auto& mutex = get_messengers_mutex();

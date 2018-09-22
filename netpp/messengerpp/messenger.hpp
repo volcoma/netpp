@@ -3,8 +3,8 @@
 
 namespace net
 {
-template<typename T, typename Serializer, typename Deserializer>
-typename messenger<T, Serializer, Deserializer>::ptr messenger<T, Serializer, Deserializer>::create()
+template <typename T, typename OArchive, typename IArchive>
+typename messenger<T, OArchive, IArchive>::ptr messenger<T, OArchive, IArchive>::create()
 {
 	struct make_shared_enabler : messenger
 	{
@@ -12,9 +12,10 @@ typename messenger<T, Serializer, Deserializer>::ptr messenger<T, Serializer, De
 	return std::make_shared<make_shared_enabler>();
 }
 
-template<typename T, typename Serializer, typename Deserializer>
-connector::id_t messenger<T, Serializer, Deserializer>::add_connector(const connector_ptr& connector, on_connect_t on_connect,
-										 on_disconnect_t on_disconnect, on_msg_t on_msg)
+template <typename T, typename OArchive, typename IArchive>
+connector::id_t
+messenger<T, OArchive, IArchive>::add_connector(const connector_ptr& connector, on_connect_t on_connect,
+												on_disconnect_t on_disconnect, on_msg_t on_msg)
 {
 	if(!connector)
 	{
@@ -29,7 +30,7 @@ connector::id_t messenger<T, Serializer, Deserializer>::add_connector(const conn
 	info->on_connect = std::move(on_connect);
 	info->on_disconnect = std::move(on_disconnect);
 	info->on_msg = std::move(on_msg);
-    info->thread_id = itc::this_thread::get_id();
+	info->thread_id = itc::this_thread::get_id();
 
 	auto weak_this = weak_ptr(this->shared_from_this());
 
@@ -51,8 +52,8 @@ connector::id_t messenger<T, Serializer, Deserializer>::add_connector(const conn
 	return connector_id;
 }
 
-template<typename T, typename Serializer, typename Deserializer>
-void messenger<T, Serializer, Deserializer>::send_msg(connection::id_t id, msg_t&& msg)
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::send_msg(connection::id_t id, msg_t&& msg)
 {
 	std::unique_lock<std::mutex> lock(guard_);
 
@@ -71,11 +72,11 @@ void messenger<T, Serializer, Deserializer>::send_msg(connection::id_t id, msg_t
 
 	lock.unlock();
 
-	connection->send_msg(to_buffer(msg), 0);
+	connection->send_msg(serializer_t::to_buffer(msg), 0);
 }
 
-template<typename T, typename Serializer, typename Deserializer>
-void messenger<T, Serializer, Deserializer>::disconnect(connection::id_t id)
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::disconnect(connection::id_t id)
 {
 	std::unique_lock<std::mutex> lock(guard_);
 
@@ -97,22 +98,22 @@ void messenger<T, Serializer, Deserializer>::disconnect(connection::id_t id)
 	connection->stop({});
 }
 
-template<typename T, typename Serializer, typename Deserializer>
-void messenger<T, Serializer, Deserializer>::remove_connector(connector::id_t id)
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::remove_connector(connector::id_t id)
 {
 	std::lock_guard<std::mutex> lock(guard_);
 	connectors_.erase(id);
 }
 
-template<typename T, typename Serializer, typename Deserializer>
-bool messenger<T, Serializer, Deserializer>::empty() const
+template <typename T, typename OArchive, typename IArchive>
+bool messenger<T, OArchive, IArchive>::empty() const
 {
 	std::lock_guard<std::mutex> lock(guard_);
 	return connectors_.empty() && connections_.empty();
 }
 
-template<typename T, typename Serializer, typename Deserializer>
-void messenger<T, Serializer, Deserializer>::remove_all()
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::remove_all()
 {
 	auto connections = [&]() {
 		std::lock_guard<std::mutex> lock(guard_);
@@ -126,12 +127,13 @@ void messenger<T, Serializer, Deserializer>::remove_all()
 		auto& conn_info = kvp.second;
 		auto& connection = conn_info.connection;
 		connection->stop({});
-        connection.reset();
+		connection.reset();
 	}
 }
 
-template<typename T, typename Serializer, typename Deserializer>
-void messenger<T, Serializer, Deserializer>::on_new_connection(connection_ptr& connection, const user_info_ptr& info)
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::on_new_connection(connection_ptr& connection,
+														 const user_info_ptr& info)
 {
 	auto weak_this = weak_ptr(this->shared_from_this());
 
@@ -169,8 +171,9 @@ void messenger<T, Serializer, Deserializer>::on_new_connection(connection_ptr& c
 	connection->start();
 }
 
-template<typename T, typename Serializer, typename Deserializer>
-void messenger<T, Serializer, Deserializer>::on_connect(connection::id_t id, connection_info&& conn_info, const user_info_ptr& info)
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::on_connect(connection::id_t id, connection_info&& conn_info,
+												  const user_info_ptr& info)
 {
 	{
 		std::lock_guard<std::mutex> lock(guard_);
@@ -179,12 +182,13 @@ void messenger<T, Serializer, Deserializer>::on_connect(connection::id_t id, con
 
 	if(info->on_connect)
 	{
-        itc::invoke(info->thread_id, info->on_connect, id);
+		itc::invoke(info->thread_id, info->on_connect, id);
 	}
 }
 
-template<typename T, typename Serializer, typename Deserializer>
-void messenger<T, Serializer, Deserializer>::on_disconnect(connection::id_t id, error_code ec, const user_info_ptr& info)
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::on_disconnect(connection::id_t id, error_code ec,
+													 const user_info_ptr& info)
 {
 	{
 		std::lock_guard<std::mutex> lock(guard_);
@@ -192,23 +196,24 @@ void messenger<T, Serializer, Deserializer>::on_disconnect(connection::id_t id, 
 	}
 	if(info->on_disconnect)
 	{
-        itc::invoke(info->thread_id, info->on_disconnect, id, ec);
+		itc::invoke(info->thread_id, info->on_disconnect, id, ec);
 	}
 }
 
-template<typename T, typename Serializer, typename Deserializer>
-void messenger<T, Serializer, Deserializer>::on_msg(connection::id_t id, byte_buffer& msg, const user_info_ptr& info)
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::on_msg(connection::id_t id, byte_buffer& msg,
+											  const user_info_ptr& info)
 {
 	if(info->on_msg)
 	{
-        itc::invoke(info->thread_id, info->on_msg, id, from_buffer(std::move(msg)));
+		itc::invoke(info->thread_id, info->on_msg, id, serializer_t::from_buffer(std::move(msg)));
 	}
 }
 
-template<typename T, typename Serializer, typename Deserializer>
-typename messenger<T, Serializer, Deserializer>::ptr get_network()
+template <typename T, typename OArchive, typename IArchive>
+typename messenger<T, OArchive, IArchive>::ptr get_network()
 {
-    using messenger_type = messenger<T, Serializer, Deserializer>;
+	using messenger_type = messenger<T, OArchive, IArchive>;
 	static std::mutex messenger_mutex;
 
 	static typename messenger_type::ptr net = []() {
