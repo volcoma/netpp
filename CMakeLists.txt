@@ -14,10 +14,6 @@ if(BUILD_NETPP_SHARED)
 	set(BUILD_SHARED_LIBS ON)
 endif()
 
-if(WIN32)
-	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/asio/asio")
-endif()
-
 add_subdirectory(3rdparty)
 add_subdirectory(netpp)
 
