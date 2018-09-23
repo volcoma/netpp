@@ -6,7 +6,7 @@
 
 #include <asiopp/service.h>
 #include <messengerpp/messenger.h>
-#include <netpp/logging.h>
+#include <builderpp/msg_builder.h>
 
 using namespace std::chrono_literals;
 
@@ -89,6 +89,11 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
         if(net)
         {
             net->send_msg(id, "echo");
+//            net::log() << "server sending request to " << id;
+//            auto f = net->send_request(id, "request");
+//            auto msg = f.get();
+//            net::log() << "server recieved response from " << id;
+//            net->send_msg(id, std::move(msg));
         }
     },
     [](net::connection::id_t id, net::error_code ec)
@@ -102,7 +107,7 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
     [](net::connection::id_t id, std::string msg)
     {
         net::log() << "server client " << id << " on_msg: " << msg;
-        itc::this_thread::sleep_for(16ms);
+        //itc::this_thread::sleep_for(16ms);
         auto net = net::get_network<std::string, test_stream, test_stream>();
         if(net)
         {
@@ -129,13 +134,18 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 		[](net::connection::id_t id, std::string msg)
         {
 		    net::log() << "client " << id << " on_msg: " << msg;
-		    itc::this_thread::sleep_for(16ms);
+		    //itc::this_thread::sleep_for(16ms);
             auto net = net::get_network<std::string, test_stream, test_stream>();
 		    if(net)
 		    {
 		 	   net->send_msg(id, std::move(msg));
 		    }
-		});
+		},
+        [](net::connection::id_t id, itc::promise<std::string> promise, std::string msg)
+        {
+            net::log() << "client " << id << " on_request: " << msg;
+            promise.set_value("echo");
+        });
 		// clang-format on
 	}
 	clients.clear();

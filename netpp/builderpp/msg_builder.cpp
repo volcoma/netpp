@@ -1,4 +1,5 @@
 #include "msg_builder.h"
+
 #include <algorithm>
 #include <iomanip>
 #include <iterator>
@@ -67,7 +68,7 @@ size_t multi_buffer_builder::get_header_size()
 
 size_t multi_buffer_builder::get_total_header_size()
 {
-    return sizeof(header_size_t) + get_header_size();
+	return sizeof(header_size_t) + get_header_size();
 }
 
 std::vector<byte_buffer> multi_buffer_builder::build(byte_buffer&& msg, data_channel channel) const
@@ -133,6 +134,7 @@ bool multi_buffer_builder::process_operation(size_t size)
 			offset += utils::from_bytes(id, msg_.data() + offset);
 			(void)offset;
 
+			channel_ = channel;
 			get_work_buffer().clear();
 			set_next_operation(op_type::read_msg, payload_size);
 		}
@@ -154,9 +156,9 @@ msg_builder::operation multi_buffer_builder::get_next_operation() const
 	return op_;
 }
 
-byte_buffer&& multi_buffer_builder::extract_msg()
+std::pair<byte_buffer, data_channel> multi_buffer_builder::extract_msg()
 {
-	return std::move(msg_);
+	return {std::move(msg_), channel_};
 }
 
 byte_buffer& multi_buffer_builder::get_work_buffer()
@@ -226,6 +228,7 @@ bool single_buffer_builder::process_operation(size_t size)
 			offset += utils::from_bytes(channel, msg_.data() + offset);
 			offset += utils::from_bytes(id, msg_.data() + offset);
 			(void)offset;
+			channel_ = channel;
 			msg_.clear();
 			set_next_operation(op_type::read_msg, payload_size);
 		}
@@ -247,9 +250,9 @@ msg_builder::operation single_buffer_builder::get_next_operation() const
 	return op_;
 }
 
-byte_buffer&& single_buffer_builder::extract_msg()
+std::pair<byte_buffer, data_channel> single_buffer_builder::extract_msg()
 {
-	return std::move(msg_);
+	return {std::move(msg_), channel_};
 }
 
 byte_buffer& single_buffer_builder::get_work_buffer()

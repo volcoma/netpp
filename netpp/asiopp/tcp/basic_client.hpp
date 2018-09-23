@@ -32,7 +32,7 @@ public:
 	/// Starts the client attempting to connect to an endpoint.
 	//-----------------------------------------------------------------------------
 	void start() override;
-    void restart();
+	void restart();
 
 	template <typename socket_type, typename F>
 	void async_connect(socket_type& socket, F f);
@@ -43,7 +43,7 @@ public:
 protected:
 	protocol_endpoint endpoint_;
 	asio::io_service& io_context_;
-    asio::steady_timer reconnect_timer_;
+	asio::steady_timer reconnect_timer_;
 };
 
 template <typename protocol_type>
@@ -51,9 +51,9 @@ inline basic_client<protocol_type>::basic_client(asio::io_service& io_context,
 												 const protocol_endpoint& endpoint)
 	: io_context_(io_context)
 	, endpoint_(endpoint)
-    , reconnect_timer_(io_context)
+	, reconnect_timer_(io_context)
 {
-    reconnect_timer_.expires_at(asio::steady_timer::time_point::max());
+	reconnect_timer_.expires_at(asio::steady_timer::time_point::max());
 }
 
 template <typename protocol_type>
@@ -71,15 +71,15 @@ inline void basic_client<protocol_type>::start()
 		shared_this->on_handshake_complete(socket);
 	};
 
-    async_connect(socket, std::move(on_connection_established));
+	async_connect(socket, std::move(on_connection_established));
 }
 
-template<typename protocol_type>
+template <typename protocol_type>
 void basic_client<protocol_type>::restart()
 {
-    using namespace std::chrono_literals;
-    reconnect_timer_.expires_from_now(1s);
-    reconnect_timer_.async_wait(std::bind(&basic_client::start, this->shared_from_this()));
+	using namespace std::chrono_literals;
+	reconnect_timer_.expires_from_now(1s);
+	reconnect_timer_.async_wait(std::bind(&basic_client::start, this->shared_from_this()));
 }
 
 template <typename protocol_type>

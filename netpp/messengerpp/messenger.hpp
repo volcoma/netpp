@@ -3,6 +3,34 @@
 
 namespace net
 {
+namespace detail
+{
+inline uint64_t response_to_request(uint64_t channel)
+{
+	return channel & (~(1ull << 63));
+}
+
+inline uint64_t request_to_response(uint64_t channel)
+{
+	return channel | (1ull << 63);
+}
+
+inline bool is_msg(uint64_t channel)
+{
+	return channel == 0;
+}
+
+inline bool is_request(uint64_t channel)
+{
+	return (channel != 0) && ((channel & (1ull << 63)) == 0);
+}
+
+inline bool is_response(uint64_t channel)
+{
+	return ((channel & (1ull << 63)) != 0) && (response_to_request(channel) != 0);
+}
+}
+
 template <typename T, typename OArchive, typename IArchive>
 typename messenger<T, OArchive, IArchive>::ptr messenger<T, OArchive, IArchive>::create()
 {
@@ -13,9 +41,10 @@ typename messenger<T, OArchive, IArchive>::ptr messenger<T, OArchive, IArchive>:
 }
 
 template <typename T, typename OArchive, typename IArchive>
-connector::id_t
-messenger<T, OArchive, IArchive>::add_connector(const connector_ptr& connector, on_connect_t on_connect,
-												on_disconnect_t on_disconnect, on_msg_t on_msg)
+connector::id_t messenger<T, OArchive, IArchive>::add_connector(const connector_ptr& connector,
+																on_connect_t on_connect,
+																on_disconnect_t on_disconnect,
+																on_msg_t on_msg, on_request_t on_request)
 {
 	if(!connector)
 	{
@@ -30,6 +59,7 @@ messenger<T, OArchive, IArchive>::add_connector(const connector_ptr& connector, 
 	info->on_connect = std::move(on_connect);
 	info->on_disconnect = std::move(on_disconnect);
 	info->on_msg = std::move(on_msg);
+	info->on_request = std::move(on_request);
 	info->thread_id = itc::this_thread::get_id();
 
 	auto weak_this = weak_ptr(this->shared_from_this());
@@ -55,15 +85,26 @@ messenger<T, OArchive, IArchive>::add_connector(const connector_ptr& connector, 
 template <typename T, typename OArchive, typename IArchive>
 void messenger<T, OArchive, IArchive>::send_msg(connection::id_t id, msg_t&& msg)
 {
+	send(id, msg, 0);
+}
+
+template <typename T, typename OArchive, typename IArchive>
+typename messenger<T, OArchive, IArchive>::future_t
+messenger<T, OArchive, IArchive>::send_request(connection::id_t id, msg_t&& msg)
+{
+	static std::atomic<uint64_t> ids = {1};
+	promise_t promise;
+	auto future = promise.get_future();
+	auto request_id = ids++;
 	std::unique_lock<std::mutex> lock(guard_);
 
 	auto conn_it = connections_.find(id);
 	if(conn_it == std::end(connections_))
 	{
-		return;
+		return future;
 	}
 	auto& conn_info = conn_it->second;
-
+	conn_info.promises[request_id] = std::move(promise);
 	// get a copy so that we can unlock
 	// and work on unlocked mutex
 	// after the unlock we may be the last
@@ -72,7 +113,9 @@ void messenger<T, OArchive, IArchive>::send_msg(connection::id_t id, msg_t&& msg
 
 	lock.unlock();
 
-	connection->send_msg(serializer_t::to_buffer(msg), 0);
+	connection->send_msg(serializer_t::to_buffer(msg), request_id);
+
+	return future;
 }
 
 template <typename T, typename OArchive, typename IArchive>
@@ -156,15 +199,16 @@ void messenger<T, OArchive, IArchive>::on_new_connection(connection_ptr& connect
 	});
 
 	auto sentinel = std::weak_ptr<void>(conn_info.sentinel);
-	connection->on_msg.emplace_back([weak_this, info, sentinel](connection::id_t id, byte_buffer msg) {
-		auto shared_this = weak_this.lock();
-		if(!shared_this || sentinel.expired())
-		{
-			return;
-		}
+	connection->on_msg.emplace_back(
+		[weak_this, info, sentinel](connection::id_t id, byte_buffer msg, data_channel channel) {
+			auto shared_this = weak_this.lock();
+			if(!shared_this || sentinel.expired())
+			{
+				return;
+			}
 
-		shared_this->on_msg(id, msg, info);
-	});
+			shared_this->on_raw_msg(id, msg, channel, info);
+		});
 
 	on_connect(connection->id, std::move(conn_info), info);
 
@@ -201,13 +245,114 @@ void messenger<T, OArchive, IArchive>::on_disconnect(connection::id_t id, error_
 }
 
 template <typename T, typename OArchive, typename IArchive>
-void messenger<T, OArchive, IArchive>::on_msg(connection::id_t id, byte_buffer& msg,
-											  const user_info_ptr& info)
+void messenger<T, OArchive, IArchive>::on_raw_msg(connection::id_t id, byte_buffer& raw_msg,
+												  data_channel channel, const user_info_ptr& info)
+{
+
+	auto msg = serializer_t::from_buffer(std::move(raw_msg));
+	if(detail::is_msg(channel))
+	{
+		on_msg(id, msg, info);
+	}
+	else
+	{
+		if(detail::is_request(channel))
+		{
+			on_request(id, msg, channel, info);
+		}
+		else if(detail::is_response(channel))
+		{
+			on_response(id, msg, channel);
+		}
+		else
+		{
+			disconnect(id);
+		}
+	}
+}
+
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::on_msg(connection::id_t id, msg_t& msg, const user_info_ptr& info)
 {
 	if(info->on_msg)
 	{
-		itc::invoke(info->thread_id, info->on_msg, id, serializer_t::from_buffer(std::move(msg)));
+		itc::invoke(info->thread_id, info->on_msg, id, std::move(msg));
 	}
+}
+
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::on_request(connection::id_t id, msg_t& msg, uint64_t request_id,
+												  const user_info_ptr& info)
+{
+	auto response_id = detail::request_to_response(request_id);
+	promise_t promise;
+	auto future = promise.get_future();
+
+	auto weak_this = weak_ptr(this->shared_from_this());
+	future.then(itc::main_id(), [weak_this, id, response_id](auto f) {
+		auto shared_this = weak_this.lock();
+		if(!shared_this || f.has_error())
+		{
+			return;
+		}
+
+		auto msg = f.get();
+
+		shared_this->send(id, msg, response_id);
+	});
+
+	if(info->on_request)
+	{
+		itc::invoke(info->thread_id, info->on_request, id, std::move(promise), std::move(msg));
+	}
+}
+
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::on_response(connection::id_t id, msg_t& msg, uint64_t response_id)
+{
+	auto request_id = detail::response_to_request(response_id);
+
+	std::unique_lock<std::mutex> lock(guard_);
+	auto conn_it = connections_.find(id);
+	if(conn_it == std::end(connections_))
+	{
+		return;
+	}
+	auto& conn_info = conn_it->second;
+	auto& promises = conn_info.promises;
+
+	auto it = promises.find(request_id);
+	if(it == std::end(promises))
+	{
+		return;
+	}
+
+	auto& promise = it->second;
+	promise.set_value(std::move(msg));
+	promises.erase(it);
+}
+
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::send(connection::id_t id, msg_t& msg, data_channel channel)
+{
+	std::unique_lock<std::mutex> lock(guard_);
+
+	auto conn_it = connections_.find(id);
+	if(conn_it == std::end(connections_))
+	{
+		return;
+	}
+	auto& conn_info = conn_it->second;
+
+	// get a copy so that we can unlock
+	// and work on unlocked mutex
+	// after the unlock we may be the last
+	// user of this connection.
+	auto connection = conn_info.connection;
+
+	lock.unlock();
+
+	connection->send_msg(serializer_t::to_buffer(msg), channel);
 }
 
 template <typename T, typename OArchive, typename IArchive>

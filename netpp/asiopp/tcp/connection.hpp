@@ -60,11 +60,10 @@ public:
 template <typename socket_type>
 void tcp_connection<socket_type>::start_read()
 {
-    //NOTE! Thread safety:
-    //the builder should only be used for reads
-    //which are already synchronized via the explicit 'strand'
-	//std::lock_guard<std::mutex> lock(this->guard_);
-
+	// NOTE! Thread safety:
+	// the builder should only be used for reads
+	// which are already synchronized via the explicit 'strand'
+	// std::lock_guard<std::mutex> lock(this->guard_);
 
 	auto operation = this->builder->get_next_operation();
 	auto& work_buffer = this->builder->get_work_buffer();
@@ -87,34 +86,28 @@ void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t 
 		return;
 	}
 	if(!ec)
-	{        
-		auto extract_msg = [&]() -> byte_buffer {
-			//NOTE! Thread safety:
-            //the builder should only be used for reads
-            //which are already synchronized via the explicit 'strand'
-            //std::lock_guard<std::mutex> lock(this->guard_);
-
-			bool is_ready = this->builder->process_operation(size);
-			if(is_ready)
-			{
-				// Extract the message from the builder.
-				return this->builder->extract_msg();
-			}
-
-			return {};
-		};
-
-		auto msg = extract_msg();
-
-		if(!msg.empty())
+	{
+		// NOTE! Thread safety:
+		// the builder should only be used for reads
+		// which are already synchronized via the explicit 'strand'
+		// std::lock_guard<std::mutex> lock(this->guard_);
+		bool is_ready = this->builder->process_operation(size);
+		if(is_ready)
 		{
-			for(const auto& callback : this->on_msg)
+			// Extract the message from the builder.
+			auto msg_data = this->builder->extract_msg();
+			auto& msg = msg_data.first;
+			auto channel = msg_data.second;
+
+			if(!msg.empty())
 			{
-				callback(this->id, msg);
+				for(const auto& callback : this->on_msg)
+				{
+					callback(this->id, msg, channel);
+				}
 			}
 		}
-
-        start_read();
+		start_read();
 	}
 	else
 	{
@@ -125,18 +118,17 @@ void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t 
 template <typename socket_type>
 void tcp_connection<socket_type>::start_write()
 {
-    auto buffers = [&]()
-    {
-        std::lock_guard<std::mutex> lock(this->guard_);
-        const auto& to_wire = this->output_queue_.front();
-        std::vector<asio::const_buffer> buffers;
-        buffers.reserve(to_wire.size());
-        for(const auto& buf : to_wire)
-        {
-            buffers.emplace_back(asio::buffer(buf));
-        }
-        return buffers;
-    }();
+	auto buffers = [&]() {
+		std::lock_guard<std::mutex> lock(this->guard_);
+		const auto& to_wire = this->output_queue_.front();
+		std::vector<asio::const_buffer> buffers;
+		buffers.reserve(to_wire.size());
+		for(const auto& buf : to_wire)
+		{
+			buffers.emplace_back(asio::buffer(buf));
+		}
+		return buffers;
+	}();
 
 	// Here std::bind + shared_from_this is used because of the composite op async_*
 	// We want it to operate on valid data until the handler is called.

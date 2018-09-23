@@ -38,20 +38,20 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 
 		while(true)
 		{
-            if(stopped())
-            {
-                return;
-            }
+			if(stopped())
+			{
+				return;
+			}
 
-            //std::unique_lock<std::mutex> lock(guard_);
-            error_code av;
+			// std::unique_lock<std::mutex> lock(guard_);
+			error_code av;
 			auto available = socket_->lowest_layer().available(av);
 
-            if(av)
-            {
-                stop(av);
-                return;
-            }
+			if(av)
+			{
+				stop(av);
+				return;
+			}
 
 			if(available == 0)
 			{
@@ -66,14 +66,14 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 				break;
 			}
 
-            //lock.unlock();
+			// lock.unlock();
 
 			size_t processed = 0;
 			while(processed < available)
 			{
-                //NOTE! Thread safety:
-                //the builder should only be used for reads
-                //which are already synchronized via the explicit 'strand'
+				// NOTE! Thread safety:
+				// the builder should only be used for reads
+				// which are already synchronized via the explicit 'strand'
 				auto operation = builder->get_next_operation();
 
 				auto left = available - processed;
@@ -91,11 +91,13 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 				if(is_ready)
 				{
 					// Extract the message from the builder.
-					auto msg = builder->extract_msg();
+					auto msg_data = builder->extract_msg();
+					auto& msg = msg_data.first;
+					auto channel = msg_data.second;
 
 					for(const auto& callback : on_msg)
 					{
-						callback(id, msg);
+						callback(id, msg, channel);
 					}
 				}
 
@@ -120,18 +122,17 @@ void udp_connection::start_write()
 		return;
 	}
 
-    auto buffers = [&]()
-    {
-        std::lock_guard<std::mutex> lock(this->guard_);
-        const auto& to_wire = this->output_queue_.front();
-        std::vector<asio::const_buffer> buffers;
-        buffers.reserve(to_wire.size());
-        for(const auto& buf : to_wire)
-        {
-            buffers.emplace_back(asio::buffer(buf));
-        }
-        return buffers;
-    }();
+	auto buffers = [&]() {
+		std::lock_guard<std::mutex> lock(this->guard_);
+		const auto& to_wire = this->output_queue_.front();
+		std::vector<asio::const_buffer> buffers;
+		buffers.reserve(to_wire.size());
+		for(const auto& buf : to_wire)
+		{
+			buffers.emplace_back(asio::buffer(buf));
+		}
+		return buffers;
+	}();
 
 	// Here std::bind + shared_from_this is used because of the composite op async_*
 	// We want it to operate on valid data until the handler is called.
