@@ -7,62 +7,39 @@
 #include <asiopp/service.h>
 #include <messengerpp/messenger.h>
 #include <builderpp/msg_builder.h>
-
+#include <sstream>
 using namespace std::chrono_literals;
-
-struct test_stream
-{
-	test_stream() = default;
-	test_stream(net::byte_buffer&& buf)
-		: buffer(std::move(buf))
-	{
-	}
-
-	test_stream& operator<<(const std::string& msg)
-	{
-		buffer = to_buffer(msg);
-		return *this;
-	}
-	test_stream& operator>>(std::string& msg)
-	{
-		msg = from_buffer(buffer);
-		return *this;
-	}
-
-    std::vector<uint8_t> to_buffer(const std::string& str)
-    {
-        return {std::begin(str), std::end(str)};
-    }
-
-    std::string from_buffer(const std::vector<uint8_t>& buffer)
-    {
-        return {std::begin(buffer), std::end(buffer)};
-    }
-
-	net::byte_buffer buffer;
-};
 
 namespace net
 {
 
 template <typename T>
-struct serializer<T, test_stream, test_stream>
+struct serializer<T, std::stringstream, std::stringstream>
 {
 	static byte_buffer to_buffer(const T& msg)
 	{
-		test_stream serializer;
+		std::stringstream serializer;
 		serializer << msg;
-		return serializer.buffer;
+        auto str = serializer.str();
+        return byte_buffer{std::begin(str), std::end(str)};
 	}
 
 	static T from_buffer(byte_buffer&& buffer)
 	{
-		test_stream deserializer(std::move(buffer));
+		std::stringstream deserializer;
+        deserializer << std::string{std::begin(buffer), std::end(buffer)};
 		T msg;
 		deserializer >> msg;
 		return msg;
 	}
 };
+
+
+template <typename T>
+auto get_network()
+{
+    return get_messenger<T, std::stringstream, std::stringstream>();
+}
 }
 
 static std::atomic<net::connection::id_t> server_con{0};
@@ -77,7 +54,7 @@ void setup_connector(net::connector_ptr& connector)
 
 void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients)
 {
-	auto net = net::get_network<std::string, test_stream, test_stream>();
+	auto net = net::get_network<std::string>();
 	// clang-format off
     setup_connector(server);
 	net->add_connector(server,
@@ -85,7 +62,7 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
     {
         net::log() << "server connected " << id;
         server_con = id;
-        auto net = net::get_network<std::string, test_stream, test_stream>();
+        auto net = net::get_network<std::string>();
         if(net)
         {
             net->send_msg(id, "echo");
@@ -108,7 +85,7 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
     {
         net::log() << "server client " << id << " on_msg: " << msg;
         //itc::this_thread::sleep_for(16ms);
-        auto net = net::get_network<std::string, test_stream, test_stream>();
+        auto net = net::get_network<std::string>();
         if(net)
         {
             net->send_msg(id, std::move(msg));
@@ -135,7 +112,7 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
         {
 		    net::log() << "client " << id << " on_msg: " << msg;
 		    //itc::this_thread::sleep_for(16ms);
-            auto net = net::get_network<std::string, test_stream, test_stream>();
+            auto net = net::get_network<std::string>();
 		    if(net)
 		    {
 		 	   net->send_msg(id, std::move(msg));

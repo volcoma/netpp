@@ -133,7 +133,7 @@ std::vector<std::function<void()>>& get_deleters();
 std::mutex& get_messengers_mutex();
 void deinit_messengers();
 template <typename T, typename OArchive, typename IArchive>
-typename net::messenger<T, OArchive, IArchive>::ptr get_network();
+typename net::messenger<T, OArchive, IArchive>::ptr get_messenger();
 
 } // namespace net
 

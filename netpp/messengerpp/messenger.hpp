@@ -356,7 +356,7 @@ void messenger<T, OArchive, IArchive>::send(connection::id_t id, msg_t& msg, dat
 }
 
 template <typename T, typename OArchive, typename IArchive>
-typename messenger<T, OArchive, IArchive>::ptr get_network()
+typename messenger<T, OArchive, IArchive>::ptr get_messenger()
 {
 	using messenger_type = messenger<T, OArchive, IArchive>;
 	static std::mutex messenger_mutex;
