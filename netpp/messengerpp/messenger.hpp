@@ -303,7 +303,10 @@ void messenger<T, OArchive, IArchive>::on_request(connection::id_t id, msg_t& ms
 
 	if(info->on_request)
 	{
-		itc::invoke(info->thread_id, info->on_request, id, std::move(promise), std::move(msg));
+		itc::invoke(info->thread_id, [id, callback = info->on_request, promise = std::move(promise), msg = std::move(msg)]() mutable
+        {
+            callback(id, std::move(promise), std::move(msg));
+        });
 	}
 }
 
