@@ -204,7 +204,8 @@ int main(int argc, char* argv[])
     using creator = std::function<net::connector_ptr(config)>;
     std::vector<std::tuple<std::string, creator, creator>> creators =
     {
-        {
+        std::make_tuple
+        (
             "UNICAST",
             [](const config& conf)
             {
@@ -214,8 +215,9 @@ int main(int argc, char* argv[])
             {
                 return net::create_udp_unicast_server(conf.address, conf.port);
             }
-        },
-        {
+        ),
+        std::make_tuple
+        (
             "MULTICAST",
             [](const config& conf)
             {
@@ -225,8 +227,9 @@ int main(int argc, char* argv[])
             {
                 return net::create_udp_multicast_server(conf.multicast_address, conf.port);
             }
-        },
-        {
+        ),
+        std::make_tuple
+        (
             "BROADCAST",
             [](const config& conf)
             {
@@ -236,8 +239,9 @@ int main(int argc, char* argv[])
             {
                 return net::create_udp_broadcast_server(conf.port);
             }
-        },
-        {
+        ),
+        std::make_tuple
+        (
             "TCP",
             [](const config& conf)
             {
@@ -247,8 +251,9 @@ int main(int argc, char* argv[])
             {
                 return net::create_tcp_server(conf.port);
             }
-        },
-        {
+        ),
+        std::make_tuple
+        (
             "TCP SSL",
             [](const config& conf)
             {
@@ -258,8 +263,9 @@ int main(int argc, char* argv[])
             {
                 return net::create_tcp_ssl_server(conf.port, conf.cert_chain_file, conf.private_key_file, conf.dh_file, conf.private_key_pass);
             }
-        },
-        {
+        ),
+        std::make_tuple
+        (
             "TCP LOCAL",
             [](const config& conf)
             {
@@ -269,8 +275,9 @@ int main(int argc, char* argv[])
             {
                 return net::create_tcp_local_server(conf.domain);
             }
-        },
-        {
+        ),
+        std::make_tuple
+        (
             "TCP SSL LOCAL",
             [](const config& conf)
             {
@@ -280,7 +287,7 @@ int main(int argc, char* argv[])
             {
                 return net::create_tcp_ssl_local_server(conf.domain, conf.cert_chain_file, conf.private_key_file, conf.dh_file, conf.private_key_pass);
             }
-        }
+        )
     };
 	// clang-format on
 
