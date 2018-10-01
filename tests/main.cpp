@@ -5,10 +5,83 @@
 #include <tuple>
 
 #include <asiopp/service.h>
-#include <messengerpp/messenger.h>
 #include <builderpp/msg_builder.h>
+#include <messengerpp/messenger.h>
 #include <sstream>
 using namespace std::chrono_literals;
+
+template <typename T>
+class event_stack
+{
+public:
+	using id_t = uint64_t;
+
+	template <typename U>
+	id_t push(const std::string& group, U&& event)
+	{
+		static std::atomic<id_t> id_gen{0};
+		auto id = ++id_gen;
+		auto& events = storage[group];
+
+		events.emplace_back(event_info{std::forward<U>(event), id});
+		return id;
+	}
+
+	bool pop(id_t id)
+	{
+		for(auto& kvp : storage)
+		{
+			const auto& group = kvp.first;
+			auto& events = kvp.second;
+
+			if(pop(id, events))
+			{
+				if(events.empty())
+				{
+					storage.erase(group);
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool pop(const std::string& category, id_t id)
+	{
+		auto it = storage.find(category);
+
+		if(it != storage.end())
+		{
+			auto& events = it->second;
+			return pop(id, events);
+		}
+		return false;
+	}
+	void clear(const std::string& group)
+	{
+		storage.erase(group);
+	}
+
+private:
+	struct event_info
+	{
+		T event{};
+		id_t id{};
+	};
+
+	bool pop(id_t id, std::vector<event_info>& events)
+	{
+		auto sz_before = events.size();
+		events.erase(std::remove_if(std::begin(events), std::end(events),
+									[id](const auto& event) { return event.id == id; }),
+					 std::end(events));
+		auto sz_after = events.size();
+
+		return (sz_before != sz_after);
+	}
+
+	std::map<std::string, std::vector<event_info>> storage;
+};
 
 namespace net
 {
@@ -20,25 +93,24 @@ struct serializer<T, std::stringstream, std::stringstream>
 	{
 		std::stringstream serializer;
 		serializer << msg;
-        auto str = serializer.str();
-        return byte_buffer{std::begin(str), std::end(str)};
+		auto str = serializer.str();
+		return byte_buffer{std::begin(str), std::end(str)};
 	}
 
 	static T from_buffer(byte_buffer&& buffer)
 	{
 		std::stringstream deserializer;
-        deserializer << std::string{std::begin(buffer), std::end(buffer)};
+		deserializer << std::string{std::begin(buffer), std::end(buffer)};
 		T msg;
 		deserializer >> msg;
 		return msg;
 	}
 };
 
-
 template <typename T>
 auto get_network()
 {
-    return get_messenger<T, std::stringstream, std::stringstream>();
+	return get_messenger<T, std::stringstream, std::stringstream>();
 }
 }
 
@@ -151,6 +223,13 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 int main(int argc, char* argv[])
 {
 
+	event_stack<std::string> stack;
+
+	stack.push("hopper", "error");
+	stack.push("hopper", "error2");
+	auto id = stack.push("hopper2", "error");
+	stack.clear("hopper");
+	stack.pop(id);
 	if(argc < 2)
 	{
 		std::cerr << "Usage: <server/client/both>"
