@@ -12,7 +12,8 @@ namespace net
 template <typename T, typename OArchive, typename IArchive>
 struct serializer
 {
-	static_assert(!std::is_same<OArchive, OArchive>::value,
+    constexpr static const bool type_dependent_false = !std::is_same<OArchive, OArchive>::value;
+	static_assert(type_dependent_false,
 				  "Please specialize(fully or partial) this type for the message type and "
 				  "(output archive)/(input archive) your messenger is working with.");
 
