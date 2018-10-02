@@ -46,15 +46,22 @@ connector::id_t messenger<T, OArchive, IArchive>::add_connector(const connector_
 																on_disconnect_t on_disconnect,
 																on_msg_t on_msg, on_request_t on_request)
 {
+	// check for connector validity
 	if(!connector)
 	{
 		return 0;
 	}
 	auto connector_id = connector->id;
+
+	// check if connector is already added
 	if(connector->on_connection_ready)
 	{
 		return connector_id;
 	}
+
+	// make an user info holding callbacks and
+	// desired thread for these callbacks
+	// to be executed in
 	auto info = std::make_shared<user_info>();
 	info->on_connect = std::move(on_connect);
 	info->on_disconnect = std::move(on_disconnect);
@@ -64,6 +71,8 @@ connector::id_t messenger<T, OArchive, IArchive>::add_connector(const connector_
 
 	auto weak_this = weak_ptr(this->shared_from_this());
 
+	// attach a callback on the connector for when
+	// a new connection is ready
 	connector->on_connection_ready = [info, weak_this](connection_ptr connection) {
 		auto shared_this = weak_this.lock();
 		if(!shared_this)
@@ -75,16 +84,21 @@ connector::id_t messenger<T, OArchive, IArchive>::add_connector(const connector_
 	};
 
 	{
+		// add the connector for bookkeeping
 		std::lock_guard<std::mutex> lock(guard_);
 		connectors_.emplace(connector->id, connector);
 	}
+
+	// start the connector
 	connector->start();
+
 	return connector_id;
 }
 
 template <typename T, typename OArchive, typename IArchive>
 void messenger<T, OArchive, IArchive>::send_msg(connection::id_t id, msg_t&& msg)
 {
+	// Standard messeges
 	send(id, msg, 0);
 }
 
@@ -119,7 +133,7 @@ messenger<T, OArchive, IArchive>::send_request(connection::id_t id, msg_t&& msg)
 }
 
 template <typename T, typename OArchive, typename IArchive>
-void messenger<T, OArchive, IArchive>::disconnect(connection::id_t id)
+void messenger<T, OArchive, IArchive>::disconnect(connection::id_t id, const error_code& err)
 {
 	std::unique_lock<std::mutex> lock(guard_);
 
@@ -138,7 +152,7 @@ void messenger<T, OArchive, IArchive>::disconnect(connection::id_t id)
 
 	lock.unlock();
 
-	connection->stop({});
+	connection->stop(err);
 }
 
 template <typename T, typename OArchive, typename IArchive>
@@ -185,7 +199,6 @@ void messenger<T, OArchive, IArchive>::on_new_connection(connection_ptr& connect
 
 	// sentinel to be used to monitor if connection has been removed
 	// instead of expensive lookup into the connections container.
-	// this can also be used to
 	conn_info.sentinel = std::make_shared<connection::id_t>(connection->id);
 
 	connection->on_disconnect.emplace_back([weak_this, info](connection::id_t id, const error_code& ec) {
@@ -250,6 +263,7 @@ void messenger<T, OArchive, IArchive>::on_raw_msg(connection::id_t id, byte_buff
 {
 
 	auto msg = serializer_t::from_buffer(std::move(raw_msg));
+
 	if(detail::is_msg(channel))
 	{
 		on_msg(id, msg, info);
@@ -266,7 +280,7 @@ void messenger<T, OArchive, IArchive>::on_raw_msg(connection::id_t id, byte_buff
 		}
 		else
 		{
-			disconnect(id);
+			disconnect(id, make_error_code(std::errc::bad_message));
 		}
 	}
 }

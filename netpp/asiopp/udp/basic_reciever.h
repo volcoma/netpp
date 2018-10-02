@@ -3,6 +3,8 @@
 
 #include <asio/io_service.hpp>
 #include <asio/ip/udp.hpp>
+#include <asio/steady_timer.hpp>
+
 namespace net
 {
 namespace udp
@@ -27,8 +29,10 @@ public:
 	void start() override;
 
 protected:
+	void restart();
 	udp::endpoint endpoint_;
 	asio::io_service& io_context_;
+	asio::steady_timer reconnect_timer_;
 };
 }
 } // namespace net

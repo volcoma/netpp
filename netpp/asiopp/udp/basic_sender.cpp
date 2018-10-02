@@ -9,7 +9,9 @@ namespace udp
 basic_sender::basic_sender(asio::io_service& io_context, udp::endpoint endpoint)
 	: endpoint_(std::move(endpoint))
 	, io_context_(io_context)
+	, reconnect_timer_(io_context)
 {
+	reconnect_timer_.expires_at(asio::steady_timer::time_point::max());
 }
 
 void basic_sender::start()
@@ -55,11 +57,16 @@ void basic_sender::start()
 		{
 			return;
 		}
-		using namespace std::chrono_literals;
-		std::this_thread::sleep_for(500ms);
 		// Try again.
-		shared_this->start();
+		shared_this->restart();
 	});
+}
+
+void basic_sender::restart()
+{
+	using namespace std::chrono_literals;
+	reconnect_timer_.expires_from_now(1s);
+	reconnect_timer_.async_wait(std::bind(&basic_sender::start, shared_from_this()));
 }
 }
 } // namespace net

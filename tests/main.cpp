@@ -23,12 +23,11 @@ struct serializer<T, std::stringstream, std::stringstream>
 		auto str = serializer.str();
 		return byte_buffer{std::begin(str), std::end(str)};
 	}
-
 	static T from_buffer(byte_buffer&& buffer)
 	{
 		std::stringstream deserializer;
 		deserializer << std::string{std::begin(buffer), std::end(buffer)};
-		T msg;
+		T msg{};
 		deserializer >> msg;
 		return msg;
 	}

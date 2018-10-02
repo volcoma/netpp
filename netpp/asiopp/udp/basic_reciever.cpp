@@ -10,7 +10,9 @@ namespace udp
 basic_reciever::basic_reciever(asio::io_service& io_context, udp::endpoint endpoint)
 	: endpoint_(std::move(endpoint))
 	, io_context_(io_context)
+	, reconnect_timer_(io_context)
 {
+	reconnect_timer_.expires_at(asio::steady_timer::time_point::max());
 }
 
 void basic_reciever::start()
@@ -70,11 +72,16 @@ void basic_reciever::start()
 		{
 			return;
 		}
-		using namespace std::chrono_literals;
-		std::this_thread::sleep_for(500ms);
 		// Try again.
-		shared_this->start();
+		shared_this->restart();
 	});
+}
+
+void basic_reciever::restart()
+{
+	using namespace std::chrono_literals;
+	reconnect_timer_.expires_from_now(1s);
+	reconnect_timer_.async_wait(std::bind(&basic_reciever::start, shared_from_this()));
 }
 }
 } // namespace net

@@ -12,10 +12,30 @@ namespace net
 template <typename T, typename OArchive, typename IArchive>
 struct serializer
 {
-    constexpr static const bool type_dependent_false = !std::is_same<OArchive, OArchive>::value;
-	static_assert(type_dependent_false,
-				  "Please specialize(fully or partial) this type for the message type and "
-				  "(output archive)/(input archive) your messenger is working with.");
+	static_assert(sizeof(T) == 0,
+				  R"(Specialization required!
+    Please specialize(fully or partial) this type for the message type
+    and (output archive)/(input archive) your messenger is working with.
+    example:
+    template <typename T>
+    struct serializer<T, std::stringstream, std::stringstream>
+    {
+        static byte_buffer to_buffer(const T& msg)
+        {
+            std::stringstream serializer;
+            serializer << msg;
+            auto str = serializer.str();
+            return byte_buffer{std::begin(str), std::end(str)};
+        }
+        static T from_buffer(byte_buffer&& buffer)
+        {
+            std::stringstream deserializer;
+            deserializer << std::string{std::begin(buffer), std::end(buffer)};
+            T msg;
+            deserializer >> msg;
+            return msg;
+        }
+    };)");
 
 	static byte_buffer to_buffer(const T&);
 	static T from_buffer(byte_buffer&&);
@@ -90,7 +110,7 @@ public:
 	/// Disconnects the specified connection. Thread safe.
 	/// 'id' - the connection to be disconnected.
 	//-----------------------------------------------------------------------------
-	void disconnect(connection::id_t id);
+	void disconnect(connection::id_t id, const error_code& err = {});
 
 	bool empty() const;
 
