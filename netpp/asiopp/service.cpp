@@ -189,6 +189,7 @@ connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::st
 	(void)cert_chain_file;
 	(void)private_key_file;
 	(void)dh_file;
+    (void)private_key_password;
 	log() << "Local(domain) sockets are not supported.";
 	return nullptr;
 #endif

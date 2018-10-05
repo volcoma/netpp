@@ -58,7 +58,7 @@ public:
 };
 
 template <typename socket_type>
-void tcp_connection<socket_type>::start_read()
+inline void tcp_connection<socket_type>::start_read()
 {
 	// NOTE! Thread safety:
 	// the builder should only be used for reads
@@ -79,7 +79,7 @@ void tcp_connection<socket_type>::start_read()
 												  std::placeholders::_1, std::placeholders::_2)));
 }
 template <typename socket_type>
-void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
+inline void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
 {
 	if(this->stopped())
 	{
@@ -116,7 +116,7 @@ void tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t 
 }
 
 template <typename socket_type>
-void tcp_connection<socket_type>::start_write()
+inline void tcp_connection<socket_type>::start_write()
 {
 	auto buffers = [&]() {
 		std::lock_guard<std::mutex> lock(this->guard_);
@@ -138,7 +138,7 @@ void tcp_connection<socket_type>::start_write()
 												   std::placeholders::_1)));
 }
 template <typename socket_type>
-void tcp_connection<socket_type>::handle_write(const error_code& ec)
+inline void tcp_connection<socket_type>::handle_write(const error_code& ec)
 {
 	if(this->stopped())
 	{

@@ -17,3 +17,6 @@ set_target_properties(${target_name} PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 	WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
+
+include(target_warning_support)
+set_warning_level(${target_name} ultra)

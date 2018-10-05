@@ -75,7 +75,7 @@ inline void basic_client<protocol_type>::start()
 }
 
 template <typename protocol_type>
-void basic_client<protocol_type>::restart()
+inline void basic_client<protocol_type>::restart()
 {
 	using namespace std::chrono_literals;
 	reconnect_timer_.expires_from_now(1s);

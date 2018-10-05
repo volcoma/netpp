@@ -141,7 +141,7 @@ protected:
 };
 
 template <typename socket_type>
-asio_connection<socket_type>::asio_connection(std::shared_ptr<socket_type> socket,
+inline asio_connection<socket_type>::asio_connection(std::shared_ptr<socket_type> socket,
 											  const msg_builder::creator& builder_creator,
 											  asio::io_service& context)
 	: strand_(context)
@@ -158,14 +158,14 @@ asio_connection<socket_type>::asio_connection(std::shared_ptr<socket_type> socke
 }
 
 template <typename socket_type>
-void asio_connection<socket_type>::start()
+inline void asio_connection<socket_type>::start()
 {
 	connected_ = true;
 	start_read();
 	await_output();
 }
 template <typename socket_type>
-void asio_connection<socket_type>::stop(const error_code& ec)
+inline void asio_connection<socket_type>::stop(const error_code& ec)
 {
 	{
 		std::lock_guard<std::mutex> lock(guard_);
@@ -190,13 +190,13 @@ void asio_connection<socket_type>::stop(const error_code& ec)
 }
 
 template <typename socket_type>
-bool asio_connection<socket_type>::stopped() const
+inline bool asio_connection<socket_type>::stopped() const
 {
 	return !connected_;
 }
 
 template <typename socket_type>
-void asio_connection<socket_type>::send_msg(byte_buffer&& msg, data_channel channel)
+inline void asio_connection<socket_type>::send_msg(byte_buffer&& msg, data_channel channel)
 {
 	// we assume this is thread safe as it is const.
 	auto buffers = builder->build(std::move(msg), channel);
@@ -210,7 +210,7 @@ void asio_connection<socket_type>::send_msg(byte_buffer&& msg, data_channel chan
 }
 
 template <typename socket_type>
-void asio_connection<socket_type>::await_output()
+inline void asio_connection<socket_type>::await_output()
 {
 	if(stopped())
 	{

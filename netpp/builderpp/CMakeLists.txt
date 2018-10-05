@@ -16,3 +16,8 @@ set_target_properties(${target_name} PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 	WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
+include(target_warning_support)
+set_warning_level(${target_name} ultra)
+
+include(target_code_style_support)
+set_code_style(${target_name} lower_case check_headers "${extra_flags}")
