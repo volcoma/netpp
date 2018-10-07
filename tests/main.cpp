@@ -3,6 +3,7 @@
 #include <csignal>
 #include <iostream>
 #include <tuple>
+#include <functional>
 
 #include <asiopp/service.h>
 #include <builderpp/msg_builder.h>

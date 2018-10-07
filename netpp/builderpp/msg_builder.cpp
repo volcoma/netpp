@@ -87,6 +87,7 @@ std::vector<byte_buffer> single_buffer_builder::build(byte_buffer&& msg, data_ch
 bool single_buffer_builder::process_operation(size_t size)
 {
 	assert(size == op_.bytes && "read was not completed properly");
+    (void)size;
 
 	bool ready = false;
 	switch(op_.type)
