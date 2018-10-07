@@ -47,9 +47,9 @@ protected:
 template <typename protocol_type>
 inline basic_server<protocol_type>::basic_server(asio::io_service& io_context,
 												 const protocol_endpoint& listen_endpoint)
-	: io_context_(io_context)
-	, acceptor_(io_context)
+	: acceptor_(io_context)
 	, endpoint_(listen_endpoint)
+	, io_context_(io_context)
 {
 	acceptor_.open(endpoint_.protocol());
 	acceptor_.set_option(asio::socket_base::reuse_address(true));

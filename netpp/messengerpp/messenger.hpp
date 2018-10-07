@@ -1,6 +1,6 @@
 #pragma once
 #include "messenger.h"
-
+#include <system_error>
 namespace net
 {
 namespace detail
@@ -280,7 +280,7 @@ void messenger<T, OArchive, IArchive>::on_raw_msg(connection::id_t id, byte_buff
 		}
 		else
 		{
-			disconnect(id, make_error_code(std::errc::bad_message));
+			disconnect(id, make_error_code(std::errc::illegal_byte_sequence));
 		}
 	}
 }

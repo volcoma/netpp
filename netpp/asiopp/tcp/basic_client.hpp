@@ -42,16 +42,16 @@ public:
 
 protected:
 	protocol_endpoint endpoint_;
-	asio::io_service& io_context_;
 	asio::steady_timer reconnect_timer_;
+	asio::io_service& io_context_;
 };
 
 template <typename protocol_type>
 inline basic_client<protocol_type>::basic_client(asio::io_service& io_context,
 												 const protocol_endpoint& endpoint)
-	: io_context_(io_context)
-	, endpoint_(endpoint)
+	: endpoint_(endpoint)
 	, reconnect_timer_(io_context)
+	, io_context_(io_context)
 {
 	reconnect_timer_.expires_at(asio::steady_timer::time_point::max());
 }
