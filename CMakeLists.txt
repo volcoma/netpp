@@ -6,7 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/utility")
 
 option(BUILD_NETPP_SHARED "Build as a shared library." ON)
-option(BUILD_NETPP_TESTS "Build the tests" ON)
+option(BUILD_NETPP_TESTS "Build the tests" OFF)
 option(BUILD_NETPP_WITH_CODE_STYLE_CHECKS "Build with code style checks." OFF)
 
 if(BUILD_NETPP_TESTS)
