@@ -1,5 +1,6 @@
 #pragma once
 #include <functional>
+#include <string>
 #include <iostream>
 #include <sstream>
 namespace net
