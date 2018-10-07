@@ -7,7 +7,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ut
 
 option(BUILD_NETPP_SHARED "Build as a shared library." ON)
 option(BUILD_NETPP_TESTS "Build the tests" ON)
-option(BUILD_NETPP_WITH_CODE_STYLE_CHECKS "Build with code style checks." ON)
+option(BUILD_NETPP_WITH_CODE_STYLE_CHECKS "Build with code style checks." OFF)
 
 if(BUILD_NETPP_TESTS)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)

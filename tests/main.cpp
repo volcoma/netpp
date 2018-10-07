@@ -50,8 +50,9 @@ void setup_connector(net::connector_ptr& connector)
 	}
 }
 
+
 void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients)
-{
+{    
 	auto net = net::get_network<std::string>();
 	// clang-format off
     setup_connector(server);
