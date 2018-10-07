@@ -90,7 +90,7 @@ before_build:
 # we can use Ninja for all configurations
 #######################################################################################
 build_script:
-  - git submodule update --init
+  - git submodule update --init --recursive
   - mkdir build
   - cd build
   - cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_HPP_TESTS=ON ..
