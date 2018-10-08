@@ -303,7 +303,7 @@ void messenger<T, OArchive, IArchive>::on_request(connection::id_t id, msg_t& ms
 	auto future = promise.get_future();
 
 	auto weak_this = weak_ptr(this->shared_from_this());
-	future.then(itc::main_id(), [weak_this, id, response_id](auto f) {
+	future.then(info->thread_id, [weak_this, id, response_id](auto f) {
 		auto shared_this = weak_this.lock();
 		if(!shared_this || f.has_error())
 		{
