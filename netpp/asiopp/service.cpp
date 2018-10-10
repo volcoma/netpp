@@ -121,13 +121,22 @@ connector_ptr create_tcp_client(const std::string& host, uint16_t port)
 
 connector_ptr create_tcp_ssl_server(uint16_t port, const std::string& cert_chain_file,
 									const std::string& private_key_file, const std::string& dh_file,
-                                    const std::string& private_key_password)
+									const std::string& private_key_password)
 {
 	using type = net::tcp::basic_ssl_server<asio::ip::tcp>;
 
 	auto& net_context = get_io_context();
 	type::protocol_endpoint endpoint(type::protocol::v6(), port);
-	return std::make_shared<type>(net_context, endpoint, cert_chain_file, private_key_file, dh_file, private_key_password);
+	try
+	{
+		return std::make_shared<type>(net_context, endpoint, cert_chain_file, private_key_file, dh_file,
+									  private_key_password);
+	}
+	catch(const std::exception& e)
+	{
+		log() << "Could not create ssl server : " << e.what();
+		return nullptr;
+	}
 }
 
 connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const std::string& cert_file)
@@ -144,7 +153,15 @@ connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, cons
 		return nullptr;
 	}
 	auto endpoint = res->endpoint();
-	return std::make_shared<type>(net_context, endpoint, cert_file);
+	try
+	{
+		return std::make_shared<type>(net_context, endpoint, cert_file);
+	}
+	catch(const std::exception& e)
+	{
+		log() << "Could not create ssl client : " << e.what();
+		return nullptr;
+	}
 }
 
 connector_ptr create_tcp_local_server(const std::string& file)
@@ -177,19 +194,28 @@ connector_ptr create_tcp_local_client(const std::string& file)
 
 connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::string& cert_chain_file,
 										  const std::string& private_key_file, const std::string& dh_file,
-                                          const std::string& private_key_password)
+										  const std::string& private_key_password)
 {
 #ifdef ASIO_HAS_LOCAL_SOCKETS
 	using type = net::tcp::basic_ssl_server<asio::local::stream_protocol>;
 	auto& net_context = get_io_context();
 	type::protocol_endpoint endpoint(file);
-	return std::make_shared<type>(net_context, endpoint, cert_chain_file, private_key_file, dh_file, private_key_password);
+	try
+	{
+		return std::make_shared<type>(net_context, endpoint, cert_chain_file, private_key_file, dh_file,
+									  private_key_password);
+	}
+	catch(const std::exception& e)
+	{
+		log() << "Could not create ssl server : " << e.what();
+		return nullptr;
+	}
 #else
 	(void)file;
 	(void)cert_chain_file;
 	(void)private_key_file;
 	(void)dh_file;
-    (void)private_key_password;
+	(void)private_key_password;
 	log() << "Local(domain) sockets are not supported.";
 	return nullptr;
 #endif
@@ -201,7 +227,15 @@ connector_ptr create_tcp_ssl_local_client(const std::string& file, const std::st
 	using type = net::tcp::basic_ssl_client<asio::local::stream_protocol>;
 	auto& net_context = get_io_context();
 	type::protocol_endpoint endpoint(file);
-	return std::make_shared<type>(net_context, endpoint, cert_file);
+	try
+	{
+		return std::make_shared<type>(net_context, endpoint, cert_file);
+	}
+	catch(const std::exception& e)
+	{
+		log() << "Could not create ssl client : " << e.what();
+		return nullptr;
+	}
 #else
 	(void)file;
 	(void)cert_file;

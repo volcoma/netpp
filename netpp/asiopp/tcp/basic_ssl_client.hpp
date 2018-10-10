@@ -89,7 +89,7 @@ inline void basic_ssl_client<protocol_type>::start()
 									[weak_this, ssl_socket](const error_code& ec) mutable {
 										if(ec)
 										{
-											log() << "handshake error: " << ec.message();
+											log() << "Handshake error: " << ec.message();
 
 											auto shared_this = weak_this.lock();
 											if(!shared_this)

@@ -31,6 +31,7 @@ public:
 	/// Starts the server attempting to accept incomming connections.
 	//-----------------------------------------------------------------------------
 	void start() override;
+	void restart();
 
 	template <typename socket_type, typename F>
 	void async_accept(socket_type& socket, F f);
@@ -41,6 +42,7 @@ public:
 protected:
 	protocol_acceptor acceptor_;
 	protocol_endpoint endpoint_;
+	asio::steady_timer reconnect_timer_;
 	asio::io_service& io_context_;
 };
 
@@ -49,8 +51,11 @@ inline basic_server<protocol_type>::basic_server(asio::io_service& io_context,
 												 const protocol_endpoint& listen_endpoint)
 	: acceptor_(io_context)
 	, endpoint_(listen_endpoint)
+	, reconnect_timer_(io_context)
 	, io_context_(io_context)
 {
+	reconnect_timer_.expires_at(asio::steady_timer::time_point::max());
+
 	acceptor_.open(endpoint_.protocol());
 	acceptor_.set_option(asio::socket_base::reuse_address(true));
 	acceptor_.bind(endpoint_);
@@ -73,6 +78,14 @@ inline void basic_server<protocol_type>::start()
 	};
 
 	async_accept(socket, std::move(on_connection_established));
+}
+
+template <typename protocol_type>
+inline void basic_server<protocol_type>::restart()
+{
+	using namespace std::chrono_literals;
+	reconnect_timer_.expires_from_now(500ms);
+	reconnect_timer_.async_wait(std::bind(&basic_server::start, this->shared_from_this()));
 }
 
 template <typename protocol_type>

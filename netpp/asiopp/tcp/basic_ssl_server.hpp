@@ -39,7 +39,8 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// Gets the password required.
 	//-----------------------------------------------------------------------------
-	std::string get_private_key_password() const;
+	std::string get_private_key_password(std::size_t max_length,
+										 asio::ssl::context::password_purpose purpose) const;
 	asio::ssl::context context_;
 	std::string password_;
 };
@@ -50,15 +51,16 @@ inline basic_ssl_server<protocol_type>::basic_ssl_server(asio::io_service& io_co
 														 const std::string& cert_chain_file,
 														 const std::string& private_key_file,
 														 const std::string& dh_file,
-                                                         const std::string& private_key_password)
+														 const std::string& private_key_password)
 	: base_type(io_context, listen_endpoint)
 	, context_(asio::ssl::context::sslv23)
-    , password_(private_key_password)
+	, password_(private_key_password)
 {
 	context_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2 |
 						 asio::ssl::context::single_dh_use);
 
-	context_.set_password_callback(std::bind(&basic_ssl_server::get_private_key_password, this));
+	context_.set_password_callback(std::bind(&basic_ssl_server::get_private_key_password, this,
+											 std::placeholders::_1, std::placeholders::_2));
 	context_.use_certificate_chain_file(cert_chain_file);
 	context_.use_private_key_file(private_key_file, asio::ssl::context::pem);
 	context_.use_tmp_dh_file(dh_file);
@@ -85,7 +87,7 @@ inline void basic_ssl_server<protocol_type>::start()
 		[weak_this, ssl_socket](const error_code& ec) mutable {
 			if(ec)
 			{
-				log() << "handshake error: " << ec.message();
+				log() << "Handshake error: " << ec.message();
 
 				auto shared_this = weak_this.lock();
 				if(!shared_this)
@@ -98,10 +100,8 @@ inline void basic_ssl_server<protocol_type>::start()
 				// before starting a new one.
 				ssl_socket.reset();
 
-				using namespace std::chrono_literals;
-				std::this_thread::sleep_for(500ms);
 				// Try again.
-				shared_this->start();
+				shared_this->restart();
 			}
 
 			// Otherwise we have successfully established a connection.
@@ -122,8 +122,14 @@ inline void basic_ssl_server<protocol_type>::start()
 }
 
 template <typename protocol_type>
-inline std::string basic_ssl_server<protocol_type>::get_private_key_password() const
+inline std::string basic_ssl_server<protocol_type>::get_private_key_password(
+	std::size_t max_length, asio::ssl::context::password_purpose /*purpose*/) const
 {
+	if(password_.size() > max_length)
+	{
+		log() << "Provided password is too long.";
+		return {};
+	}
 	return password_;
 }
 }

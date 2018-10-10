@@ -101,7 +101,6 @@ inline void basic_client<protocol_type>::async_connect(socket_type& socket, F f)
 			// Check if the connect operation failed before the deadline expired.
 			if(ec)
 			{
-				// log() << "[NET] : Connect error: " << ec.message();
 				socket.reset();
 
 				auto shared_this = weak_this.lock();

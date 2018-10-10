@@ -341,9 +341,14 @@ void messenger<T, OArchive, IArchive>::on_response(connection::id_t id, msg_t& m
 		return;
 	}
 
-	auto& promise = it->second;
+    // move it out so that we can unlock
+    // and work on unlocked mutex
+	auto promise = std::move(it->second);
+    promises.erase(it);
+
+    lock.unlock();
+
 	promise.set_value(std::move(msg));
-	promises.erase(it);
 }
 
 template <typename T, typename OArchive, typename IArchive>
