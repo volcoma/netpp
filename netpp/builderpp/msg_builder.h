@@ -22,7 +22,6 @@ public:
 	single_buffer_builder();
 
 	static size_t get_header_size();
-	static size_t get_total_header_size();
 
 	std::vector<byte_buffer> build(byte_buffer&& msg, data_channel channel) const final;
 

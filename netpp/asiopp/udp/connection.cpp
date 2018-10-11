@@ -85,7 +85,7 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 				auto& work_buffer = builder->get_work_buffer();
 				auto offset = work_buffer.size();
 				work_buffer.resize(offset + operation.bytes);
-				std::memcpy(work_buffer.data(), buf.data() + processed, work_buffer.size());
+				std::memcpy(work_buffer.data() + offset, buf.data() + processed, work_buffer.size());
 
 				bool is_ready = builder->process_operation(operation.bytes);
 				if(is_ready)

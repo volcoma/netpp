@@ -149,6 +149,7 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 
 int main(int argc, char* argv[])
 {
+
 	if(argc < 2)
 	{
 		std::cerr << "Usage: <server/client/both>"
