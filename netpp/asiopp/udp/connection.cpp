@@ -43,7 +43,6 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 				return;
 			}
 
-			// std::unique_lock<std::mutex> lock(guard_);
 			error_code av;
 			auto available = socket_->lowest_layer().available(av);
 
@@ -66,7 +65,6 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 				break;
 			}
 
-			// lock.unlock();
 
 			size_t processed = 0;
 			while(processed < available)
@@ -85,7 +83,7 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 				auto& work_buffer = builder->get_work_buffer();
 				auto offset = work_buffer.size();
 				work_buffer.resize(offset + operation.bytes);
-				std::memcpy(work_buffer.data() + offset, buf.data() + processed, work_buffer.size());
+				std::memcpy(work_buffer.data() + offset, buf.data() + processed, operation.bytes);
 
 				bool is_ready = builder->process_operation(operation.bytes);
 				if(is_ready)

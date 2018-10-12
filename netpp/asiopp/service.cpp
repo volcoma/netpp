@@ -45,6 +45,12 @@ auto& get_service_threads()
 void create_service_threads(size_t workers = 1)
 {
 	auto& threads = get_service_threads();
+
+    if(!threads.empty())
+    {
+        return;
+    }
+
 	threads.reserve(workers);
 	for(size_t i = 0; i < workers; ++i)
 	{
@@ -64,7 +70,7 @@ void create_service_threads(size_t workers = 1)
 
 void init_services(size_t workers)
 {
-	log() << "init network services";
+    log() << "init network services";
 
 	get_work();
 	create_service_threads(workers);
