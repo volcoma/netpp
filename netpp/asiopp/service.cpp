@@ -13,6 +13,7 @@
 #include <asio/ip/udp.hpp>
 #ifdef ASIO_HAS_LOCAL_SOCKETS
 #include <asio/local/stream_protocol.hpp>
+#include <cstdio>
 #endif
 
 #include <asio/io_service.hpp>
@@ -169,6 +170,7 @@ connector_ptr create_tcp_local_server(const std::string& file)
 #ifdef ASIO_HAS_LOCAL_SOCKETS
 	using type = net::tcp::basic_server<asio::local::stream_protocol>;
 	auto& net_context = get_io_context();
+	std::remove(file.c_str());
 	type::protocol_endpoint endpoint(file);
 	return std::make_shared<type>(net_context, endpoint);
 #else
@@ -199,6 +201,7 @@ connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::st
 #ifdef ASIO_HAS_LOCAL_SOCKETS
 	using type = net::tcp::basic_ssl_server<asio::local::stream_protocol>;
 	auto& net_context = get_io_context();
+	std::remove(file.c_str());
 	type::protocol_endpoint endpoint(file);
 	try
 	{

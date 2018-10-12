@@ -4,7 +4,6 @@
 #include <functional>
 #include <iostream>
 #include <tuple>
-
 #include <asiopp/service.h>
 #include <builderpp/msg_builder.h>
 #include <messengerpp/messenger.h>
