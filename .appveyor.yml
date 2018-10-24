@@ -64,6 +64,10 @@ install:
   #######################################################################################
   - cmake --version
 
+  - cmd: set PATH=%PATH%;C:\OpenSSL-v11-Win32;C:\OpenSSL-v11-Win64
+  - dir C:\OpenSSL-Win32
+  - dir C:\OpenSSL-Win64
+  - path
 
 before_build:
   - cmd: cd C:\projects\project
