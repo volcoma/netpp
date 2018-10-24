@@ -66,39 +66,42 @@ if (WIN32)
 		set(CRYPTO_LIB_NAME libcrypto-1_1.dll)
 	endif()
 
-  find_file(DLL_LIBEAY32
-    NAMES ${CRYPTO_LIB_NAME}
-    HINTS ${_OPENSSL_ROOT_HINTS} PATHS ${_OPENSSL_ROOT_PATHS}
-    PATH_SUFFIXES bin)
-  if (NOT DLL_LIBEAY32)
-    message(WARNING
-      "Unable to find OpenSSL crypto (aka libeay32) DLL, executables may not run")
-  endif()
+	find_file(DLL_LIBEAY32
+		NAMES ${CRYPTO_LIB_NAME}
+		HINTS ${_OPENSSL_ROOT_HINTS} PATHS ${_OPENSSL_ROOT_PATHS}
+		PATH_SUFFIXES bin)
+	if (NOT DLL_LIBEAY32)
+		message(WARNING
+		"Unable to find OpenSSL crypto (aka libeay32) DLL, executables may not run")
+	else()
+		message(STATUS
+		"Found file ${DLL_LIBEAY32}")
+	endif()
 
-  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-	  set(SSL_LIB_NAME libssl-1_1-x64.dll)
-  elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-	  set(SSL_LIB_NAME libssl-1_1.dll)
-  endif()
-  find_file(DLL_SSLEAY32
-    NAMES ${SSL_LIB_NAME}
-    HINTS ${_OPENSSL_ROOT_HINTS} PATHS ${_OPENSSL_ROOT_PATHS}
-    PATH_SUFFIXES bin)
-  if (NOT DLL_SSLEAY32)
-    message(WARNING
-      "Unable to find OpenSSL ssl (aka ssleay32) DLL, executables may not run")
-  endif()
+	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+		set(SSL_LIB_NAME libssl-1_1-x64.dll)
+	elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+		set(SSL_LIB_NAME libssl-1_1.dll)
+	endif()
+	find_file(DLL_SSLEAY32
+		NAMES ${SSL_LIB_NAME}
+		HINTS ${_OPENSSL_ROOT_HINTS} PATHS ${_OPENSSL_ROOT_PATHS}
+		PATH_SUFFIXES bin)
+	if (NOT DLL_SSLEAY32)
+		message(WARNING
+		"Unable to find OpenSSL ssl (aka ssleay32) DLL, executables may not run")
+	else()
+		message(STATUS
+		"Found file ${DLL_SSLEAY32}")
+	endif()
 
-  if(DLL_LIBEAY32 AND DLL_SSLEAY32 AND CMAKE_RUNTIME_OUTPUT_DIRECTORY)
-	  file(COPY ${DLL_LIBEAY32} DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-	  file(COPY ${DLL_SSLEAY32} DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-	  #message(STATUS "copying ... ${DLL_LIBEAY32}")
-	  #message(STATUS "copying ... ${DLL_SSLEAY32}")
-
-  endif()
+	if(DLL_LIBEAY32 AND DLL_SSLEAY32 AND CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+		file(COPY ${DLL_LIBEAY32} DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+		file(COPY ${DLL_SSLEAY32} DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+	endif()
 endif()
-
-target_link_libraries(asio INTERFACE OpenSSL::SSL OpenSSL::Crypto)
+message(STATUS "OpenSSL libraries : ${OPENSSL_LIBRARIES}")
+target_link_libraries(asio INTERFACE OpenSSL::SSL OpenSSL::Crypto ${OPENSSL_LIBRARIES})
 
 target_compile_definitions(asio
                            INTERFACE ASIO_STANDALONE
