@@ -57,7 +57,7 @@ if(BUILD_SHARED_LIBS)
 	set(OPENSSL_USE_STATIC_LIBS FALSE)
 endif()
 
-find_package(OpenSSL REQUIRED)
+find_package(OpenSSL 1.1.0 REQUIRED)
 
 if (WIN32)
 	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
