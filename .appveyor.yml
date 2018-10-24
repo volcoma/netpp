@@ -93,5 +93,5 @@ build_script:
   - git submodule update --init --recursive
   - mkdir build
   - cd build
-  - cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_NETPP_TESTS=ON -DOPENSSL_ROOT_DIR="C:\OpenSSL-v11-Win32\*" ..
+  - cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_NETPP_TESTS=ON -DOPENSSL_ROOT_DIR="C:\OpenSSL-v11-Win32" ..
   - cmake --build .
