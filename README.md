@@ -1,4 +1,6 @@
 # netpp - inter-process communication
+[![Build Status](https://travis-ci.org/volcoma/netpp.svg?branch=master)](https://travis-ci.org/volcoma/netpp)
+[![Build status](https://ci.appveyor.com/api/projects/status/euy2uypo4uml2qqi?svg=true)](https://ci.appveyor.com/project/volcoma/netpp)
 
 C++14 library providing easy interface for inter-process communication .
 It expects an installed OpenSSL
