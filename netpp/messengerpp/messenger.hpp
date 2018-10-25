@@ -261,28 +261,35 @@ template <typename T, typename OArchive, typename IArchive>
 void messenger<T, OArchive, IArchive>::on_raw_msg(connection::id_t id, byte_buffer& raw_msg,
 												  data_channel channel, const user_info_ptr& info)
 {
+    T msg{};
+    try
+    {
+        msg = serializer_t::from_buffer(std::move(raw_msg));
+    }
+    catch(...)
+    {
+        disconnect(id, make_error_code(std::errc::illegal_byte_sequence));
+    }
 
-	auto msg = serializer_t::from_buffer(std::move(raw_msg));
-
-	if(detail::is_msg(channel))
-	{
-		on_msg(id, msg, info);
-	}
-	else
-	{
-		if(detail::is_request(channel))
-		{
-			on_request(id, msg, channel, info);
-		}
-		else if(detail::is_response(channel))
-		{
-			on_response(id, msg, channel);
-		}
-		else
-		{
-			disconnect(id, make_error_code(std::errc::illegal_byte_sequence));
-		}
-	}
+    if(detail::is_msg(channel))
+    {
+        on_msg(id, msg, info);
+    }
+    else
+    {
+        if(detail::is_request(channel))
+        {
+            on_request(id, msg, channel, info);
+        }
+        else if(detail::is_response(channel))
+        {
+            on_response(id, msg, channel);
+        }
+        else
+        {
+            disconnect(id, make_error_code(std::errc::illegal_byte_sequence));
+        }
+    }
 }
 
 template <typename T, typename OArchive, typename IArchive>
