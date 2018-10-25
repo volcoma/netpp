@@ -110,7 +110,8 @@ public:
 	/// Disconnects the specified connection. Thread safe.
 	/// 'id' - the connection to be disconnected.
 	//-----------------------------------------------------------------------------
-	void disconnect(connection::id_t id, const error_code& err = {});
+	void disconnect(connection::id_t id,
+					const error_code& err = make_error_code(errc::user_triggered_disconnect));
 
 	bool empty() const;
 

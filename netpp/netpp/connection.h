@@ -1,6 +1,7 @@
 #pragma once
 
 #include "msg_builder.h"
+#include "error_code.h"
 
 #include <functional>
 #include <map>
@@ -12,7 +13,6 @@
 
 namespace net
 {
-using error_code = std::error_code;
 //----------------------------------------------------------------------
 
 struct connection

@@ -142,8 +142,8 @@ protected:
 
 template <typename socket_type>
 inline asio_connection<socket_type>::asio_connection(std::shared_ptr<socket_type> socket,
-											  const msg_builder::creator& builder_creator,
-											  asio::io_service& context)
+													 const msg_builder::creator& builder_creator,
+													 asio::io_service& context)
 	: strand_(context)
 	, socket_(std::move(socket))
 	, non_empty_output_queue_(context)

@@ -86,8 +86,10 @@ std::vector<byte_buffer> single_buffer_builder::build(byte_buffer&& msg, data_ch
 
 bool single_buffer_builder::process_operation(size_t size)
 {
-	assert(size == op_.bytes && "read was not completed properly");
-	(void)size;
+	if(size != op_.bytes)
+	{
+		throw std::runtime_error("Read was not completed properly");
+	}
 
 	bool ready = false;
 	switch(op_.type)
@@ -97,6 +99,11 @@ bool single_buffer_builder::process_operation(size_t size)
 			// read header size
 			header_size_t header_size = 0;
 			utils::from_bytes(header_size, msg_.data());
+			if(header_size != get_header_size())
+			{
+				throw std::runtime_error("Invalid header format");
+			}
+
 			msg_.clear();
 			set_next_operation(op_type::read_header, header_size - sizeof(header_size_t));
 		}
