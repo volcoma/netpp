@@ -75,7 +75,7 @@ if (WIN32)
 		"Unable to find OpenSSL crypto (aka libeay32) DLL, executables may not run")
 	else()
 		message(STATUS
-		"Found file ${DLL_LIBEAY32}")
+		"Found OpenSSL crypto : ${DLL_LIBEAY32}")
 	endif()
 
 	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -92,7 +92,7 @@ if (WIN32)
 		"Unable to find OpenSSL ssl (aka ssleay32) DLL, executables may not run")
 	else()
 		message(STATUS
-		"Found file ${DLL_SSLEAY32}")
+		"Found OpenSSL ssl : ${DLL_SSLEAY32}")
 	endif()
 
 	if(DLL_LIBEAY32 AND DLL_SSLEAY32 AND CMAKE_RUNTIME_OUTPUT_DIRECTORY)
@@ -101,7 +101,7 @@ if (WIN32)
 	endif()
 endif()
 message(STATUS "OpenSSL libraries : ${OPENSSL_LIBRARIES}")
-target_link_libraries(asio INTERFACE OpenSSL::SSL OpenSSL::Crypto ${OPENSSL_LIBRARIES})
+target_link_libraries(asio INTERFACE OpenSSL::SSL OpenSSL::Crypto)
 
 target_compile_definitions(asio
                            INTERFACE ASIO_STANDALONE
