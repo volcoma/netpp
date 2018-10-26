@@ -125,6 +125,7 @@ private:
 		on_msg_t on_msg;
 		on_request_t on_request;
 		itc::thread::id thread_id = itc::invalid_id();
+        connector::id_t connector_id = 0;
 	};
 	using user_info_ptr = std::shared_ptr<user_info>;
 	using user_info_weak_ptr = std::weak_ptr<user_info>;

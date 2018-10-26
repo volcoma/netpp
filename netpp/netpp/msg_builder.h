@@ -19,18 +19,17 @@ struct msg_builder
 
 	virtual ~msg_builder() = default;
 
-	enum class op_type
-	{
-		read_header_size,
-		read_header,
-		read_msg
-	};
+    enum class op_type
+    {
+        read_bytes,
+        peek_bytes
+    };
 
-	struct operation
-	{
-		size_t bytes = 0;
-		op_type type = op_type::read_header_size;
-	};
+    struct operation
+    {
+        size_t bytes = 0;
+        op_type type = op_type::read_bytes;
+    };
 
 	//-----------------------------------------------------------------------------
 	/// Builds a message provided payload and channel.

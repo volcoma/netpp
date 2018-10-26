@@ -34,11 +34,19 @@ public:
 	byte_buffer& get_work_buffer() final;
 
 private:
-	void set_next_operation(op_type type, size_t size);
+    enum class state
+    {
+        read_header_size,
+        read_header,
+        read_payload
+    };
 
-	byte_buffer msg_;
-	channel_t channel_ = 0;
-	operation op_;
+    void set_next_operation(op_type type, size_t size, state st);
+
+    byte_buffer msg_;
+    channel_t channel_ = 0;
+    operation op_;
+    state state_ = state::read_header_size;
 };
 
 } // namespace net

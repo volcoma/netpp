@@ -68,6 +68,7 @@ connector::id_t messenger<T, OArchive, IArchive>::add_connector(const connector_
 	info->on_msg = std::move(on_msg);
 	info->on_request = std::move(on_request);
 	info->thread_id = itc::this_thread::get_id();
+    info->connector_id = connector_id;
 
 	auto weak_this = weak_ptr(this->shared_from_this());
 
@@ -250,6 +251,12 @@ void messenger<T, OArchive, IArchive>::on_disconnect(connection::id_t id, error_
 	{
 		std::lock_guard<std::mutex> lock(guard_);
 		connections_.erase(id);
+
+        // Also remove connector if the data is corrupt
+        if(is_data_corruption_error(ec))
+        {
+            connectors_.erase(info->connector_id);
+        }
 	}
 	if(info->on_disconnect)
 	{
@@ -279,16 +286,21 @@ void messenger<T, OArchive, IArchive>::on_raw_msg(connection::id_t id, byte_buff
 			{
 				on_response(id, msg, channel);
 			}
-			else
-			{
-				disconnect(id, make_error_code(errc::illegal_data_format));
-			}
-		}
-	}
-	catch(...)
-	{
-		disconnect(id, make_error_code(errc::illegal_data_format));
-	}
+            else
+            {
+                disconnect(id, make_error_code(errc::data_corruption));
+            }
+        }
+    }
+    catch(const std::exception& e)
+    {
+        log() << e.what();
+        disconnect(id, make_error_code(errc::data_corruption));
+    }
+    catch(...)
+    {
+        disconnect(id, make_error_code(errc::data_corruption));
+    }
 }
 
 template <typename T, typename OArchive, typename IArchive>

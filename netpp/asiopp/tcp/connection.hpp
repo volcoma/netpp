@@ -95,11 +95,17 @@ inline void tcp_connection<socket_type>::handle_read(const error_code& ec, std::
 		{
 			is_ready = this->builder->process_operation(size);
 		}
-		catch(...)
-		{
-			this->stop(make_error_code(errc::illegal_data_format));
-			return;
-		}
+        catch(const std::exception& e)
+        {
+            log() << e.what();
+            this->stop(make_error_code(errc::data_corruption));
+            return;
+        }
+        catch(...)
+        {
+            this->stop(make_error_code(errc::data_corruption));
+            return;
+        }
 
 		if(is_ready)
 		{
