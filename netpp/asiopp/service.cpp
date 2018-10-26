@@ -42,17 +42,17 @@ auto& get_service_threads()
 	return threads;
 }
 
-void create_service_threads(size_t workers = 1)
+void create_service_threads(const service_config& config)
 {
 	auto& threads = get_service_threads();
 
-    if(!threads.empty())
-    {
-        return;
-    }
+	if(!threads.empty())
+	{
+		return;
+	}
 
-	threads.reserve(workers);
-	for(size_t i = 0; i < workers; ++i)
+	threads.reserve(config.workers);
+	for(size_t i = 0; i < config.workers; ++i)
 	{
 		threads.emplace_back([]() {
 			try
@@ -64,16 +64,20 @@ void create_service_threads(size_t workers = 1)
 				log() << "Exception: " << e.what();
 			}
 		});
+		if(config.set_thread_name)
+		{
+			config.set_thread_name(threads.back(), "net_service");
+		}
 	}
 }
 }
 
-void init_services(size_t workers)
+void init_services(const service_config& init)
 {
-    log() << "init network services";
+	log() << "init network services";
 
 	get_work();
-	create_service_threads(workers);
+	create_service_threads(init);
 }
 
 void deinit_services()

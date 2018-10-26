@@ -1,13 +1,13 @@
+#include <asiopp/service.h>
 #include <atomic>
+#include <builderpp/msg_builder.h>
 #include <chrono>
 #include <csignal>
 #include <functional>
 #include <iostream>
-#include <tuple>
-#include <asiopp/service.h>
-#include <builderpp/msg_builder.h>
 #include <messengerpp/messenger.h>
 #include <sstream>
+#include <tuple>
 using namespace std::chrono_literals;
 
 namespace net
@@ -148,7 +148,6 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 
 int main(int argc, char* argv[])
 {
-
 	if(argc < 2)
 	{
 		std::cerr << "Usage: <server/client/both>"
@@ -291,7 +290,7 @@ int main(int argc, char* argv[])
 
 	itc::init();
 	net::set_logger([](const std::string& msg) { std::cout << msg << std::endl; });
-	net::init_services(std::thread::hardware_concurrency());
+	net::init_services();
 
 	try
 	{

@@ -3,11 +3,16 @@
 
 namespace net
 {
+struct service_config
+{
+	size_t workers = std::thread::hardware_concurrency();
+	std::function<void(std::thread&, const std::string&)> set_thread_name = nullptr;
+};
 
 //-----------------------------------------------------------------------------
-/// Init network services with specified workers count.
+/// Init network services with specified config.
 //-----------------------------------------------------------------------------
-void init_services(size_t workers);
+void init_services(const service_config& config = {});
 
 //-----------------------------------------------------------------------------
 /// Deinits the network services and joins all worker threads.
