@@ -288,8 +288,13 @@ int main(int argc, char* argv[])
     };
 	// clang-format on
 
-	itc::init();
-	net::set_logger([](const std::string& msg) { std::cout << msg << std::endl; });
+    auto info_logger = [](const std::string& msg) { std::cout << msg << std::endl; };
+    
+    itc::init_data init;
+    init.log_info = info_logger;
+    init.log_error = info_logger;
+	itc::init(init);
+	net::set_logger(info_logger);
 	net::init_services();
 
 	try
