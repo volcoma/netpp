@@ -1,6 +1,6 @@
 message(STATUS "Enabled tests.")
 
-set(target_name netpp_tests)
+set(target_name netpp_test)
 
 file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
 
@@ -15,3 +15,6 @@ set_target_properties(${target_name} PROPERTIES
 )
 
 target_compile_definitions(${target_name} PUBLIC CERT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/certificates/")
+
+enable_testing()
+add_test(NAME ${target_name} COMMAND ${target_name})
