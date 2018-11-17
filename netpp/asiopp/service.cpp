@@ -22,6 +22,8 @@ namespace net
 {
 using namespace asio;
 
+#define this_func "[net::" << __func__ << "]"
+
 namespace
 {
 auto& get_io_context()
@@ -61,7 +63,7 @@ void create_service_threads(const service_config& config)
 			}
 			catch(std::exception& e)
 			{
-				log() << "Exception: " << e.what();
+				log() << this_func << " Exception: " << e.what();
 			}
 		});
 		if(config.set_thread_name)
@@ -74,15 +76,14 @@ void create_service_threads(const service_config& config)
 
 void init_services(const service_config& init)
 {
-	log() << "init network services";
-
 	get_work();
 	create_service_threads(init);
+
+    log() << this_func << "Successful.";
 }
 
 void deinit_services()
 {
-	log() << "deinit network services";
 	get_work().reset();
 	get_io_context().stop();
 
@@ -99,10 +100,12 @@ void deinit_services()
 		}
 		catch(const std::exception& e)
 		{
-			log() << "Exception: " << e.what();
+			log() << this_func << " Exception: " << e.what();
 		}
 	}
 	threads.clear();
+
+    log() << this_func << "Successful.";
 }
 
 connector_ptr create_tcp_server(uint16_t port)
@@ -110,7 +113,15 @@ connector_ptr create_tcp_server(uint16_t port)
 	using type = net::tcp::basic_server<asio::ip::tcp>;
 	auto& net_context = get_io_context();
 	type::protocol_endpoint endpoint(type::protocol::v6(), port);
-	return std::make_shared<type>(net_context, endpoint);
+	try
+	{
+		return std::make_shared<type>(net_context, endpoint);
+	}
+	catch(const std::exception& e)
+	{
+		log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
+		return nullptr;
+	}
 }
 
 connector_ptr create_tcp_client(const std::string& host, uint16_t port)
@@ -122,12 +133,20 @@ connector_ptr create_tcp_client(const std::string& host, uint16_t port)
 	auto res = r.resolve(type::protocol::resolver::query(host, std::to_string(port)), ec);
 	if(ec)
 	{
-		log() << "Resoving host failed : " << ec.message();
+		log() << this_func << " Resolving host failed - " << ec.message();
 		return nullptr;
 	}
 
 	auto endpoint = res->endpoint();
-	return std::make_shared<type>(net_context, endpoint);
+	try
+	{
+		return std::make_shared<type>(net_context, endpoint);
+	}
+	catch(const std::exception& e)
+	{
+		log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
+		return nullptr;
+	}
 }
 
 connector_ptr create_tcp_ssl_server(uint16_t port, const std::string& cert_chain_file,
@@ -145,7 +164,7 @@ connector_ptr create_tcp_ssl_server(uint16_t port, const std::string& cert_chain
 	}
 	catch(const std::exception& e)
 	{
-		log() << "Could not create ssl server : " << e.what();
+		log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
 		return nullptr;
 	}
 }
@@ -160,7 +179,7 @@ connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, cons
 	auto res = r.resolve(type::protocol::resolver::query(host, std::to_string(port)));
 	if(ec)
 	{
-		log() << "Resoving host failed : " << ec.message();
+		log() << this_func << " Resolving host failed - " << ec.message();
 		return nullptr;
 	}
 	auto endpoint = res->endpoint();
@@ -170,7 +189,7 @@ connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, cons
 	}
 	catch(const std::exception& e)
 	{
-		log() << "Could not create ssl client : " << e.what();
+		log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
 		return nullptr;
 	}
 }
@@ -182,10 +201,17 @@ connector_ptr create_tcp_local_server(const std::string& file)
 	auto& net_context = get_io_context();
 	std::remove(file.c_str());
 	type::protocol_endpoint endpoint(file);
-	return std::make_shared<type>(net_context, endpoint);
+	try
+	{
+		return std::make_shared<type>(net_context, endpoint);
+	}
+	catch(const std::exception& e)
+	{
+		log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
+	}
 #else
 	(void)file;
-	log() << "Local(domain) sockets are not supported.";
+	log() << this_func << " Local(domain) sockets are not supported.";
 	return nullptr;
 #endif
 }
@@ -196,10 +222,17 @@ connector_ptr create_tcp_local_client(const std::string& file)
 	using type = net::tcp::basic_client<asio::local::stream_protocol>;
 	auto& net_context = get_io_context();
 	type::protocol_endpoint endpoint(file);
-	return std::make_shared<type>(net_context, endpoint);
+	try
+	{
+		return std::make_shared<type>(net_context, endpoint);
+	}
+	catch(const std::exception& e)
+	{
+		log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
+	}
 #else
 	(void)file;
-	log() << "Local(domain) sockets are not supported.";
+	log() << this_func << " Local(domain) sockets are not supported.";
 	return nullptr;
 #endif
 }
@@ -220,7 +253,7 @@ connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::st
 	}
 	catch(const std::exception& e)
 	{
-		log() << "Could not create ssl server : " << e.what();
+		log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
 		return nullptr;
 	}
 #else
@@ -229,7 +262,7 @@ connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::st
 	(void)private_key_file;
 	(void)dh_file;
 	(void)private_key_password;
-	log() << "Local(domain) sockets are not supported.";
+	log() << this_func << " Local(domain) sockets are not supported.";
 	return nullptr;
 #endif
 }
@@ -246,13 +279,13 @@ connector_ptr create_tcp_ssl_local_client(const std::string& file, const std::st
 	}
 	catch(const std::exception& e)
 	{
-		log() << "Could not create ssl client : " << e.what();
+		log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
 		return nullptr;
 	}
 #else
 	(void)file;
 	(void)cert_file;
-	log() << "Local(domain) sockets are not supported.";
+	log() << this_func << " Local(domain) sockets are not supported.";
 	return nullptr;
 #endif
 }
@@ -264,12 +297,12 @@ connector_ptr create_udp_unicast_server(const std::string& unicast_address, uint
 	auto address = asio::ip::address::from_string(unicast_address, ec);
 	if(ec)
 	{
-		log() << "Creating an udp client failed : " << ec.message();
+		log() << this_func << " Failed : " << ec.message();
 		return nullptr;
 	}
 	if(address.is_multicast())
 	{
-		log() << "Creating a udp unicast server, you provided a multicast address.";
+		log() << this_func << " Failed. You provided a multicast address.";
 		return nullptr;
 	}
 
@@ -286,13 +319,13 @@ connector_ptr create_udp_unicast_client(const std::string& unicast_address, uint
 	auto address = asio::ip::address::from_string(unicast_address, ec);
 	if(ec)
 	{
-		log() << "Creating an udp client failed : " << ec.message();
+		log() << this_func << " Failed : " << ec.message();
 		return nullptr;
 	}
 
 	if(address.is_multicast())
 	{
-		log() << "Creating a udp client server, you provided a multicast address.";
+		log() << this_func << " Failed. You provided a multicast address.";
 		return nullptr;
 	}
 
@@ -307,12 +340,12 @@ connector_ptr create_udp_multicast_server(const std::string& multicast_address, 
 	auto address = asio::ip::address::from_string(multicast_address, ec);
 	if(ec)
 	{
-		log() << "Creating an udp multicast server failed : " << ec.message();
+		log() << this_func << " Failed : " << ec.message();
 		return nullptr;
 	}
 	if(!address.is_multicast())
 	{
-		log() << "Must specify a valid multicast address.";
+		log() << this_func << " Failed. You must specify a valid multicast address.";
 		return nullptr;
 	}
 	asio::ip::udp::endpoint endpoint(address, port);
@@ -328,12 +361,12 @@ connector_ptr create_udp_multicast_client(const std::string& multicast_address, 
 	auto address = asio::ip::address::from_string(multicast_address, ec);
 	if(ec)
 	{
-		log() << "Creating an udp multicast client failed : " << ec.message();
+		log() << this_func << " Failed : " << ec.message();
 		return nullptr;
 	}
 	if(!address.is_multicast())
 	{
-		log() << "Must specify a valid multicast address.";
+		log() << this_func << " You must specify a valid multicast address.";
 		return nullptr;
 	}
 
