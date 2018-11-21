@@ -1,14 +1,14 @@
 #pragma once
 #include "basic_server.hpp"
+#include "basic_ssl_entity.hpp"
 #include "compatibility.hpp"
 #include <asio/deadline_timer.hpp>
-#include <asio/ssl.hpp>
 namespace net
 {
 namespace tcp
 {
 template <typename protocol_type>
-class basic_ssl_server : public basic_server<protocol_type>
+class basic_ssl_server : public basic_server<protocol_type>, public basic_ssl_entity
 {
 public:
 	//-----------------------------------------------------------------------------
@@ -25,8 +25,7 @@ public:
 	/// Constructor of ssl server accepting a listen endpoint and certificates.
 	//-----------------------------------------------------------------------------
 	basic_ssl_server(asio::io_service& io_context, const protocol_endpoint& listen_endpoint,
-					 const std::string& cert_chain_file, const std::string& private_key_file,
-					 const std::string& dh_file, const std::string& private_key_password = "");
+					 const ssl_config& config);
 
 	//-----------------------------------------------------------------------------
 	/// Starts the server attempting to accept incomming connections.
@@ -34,45 +33,15 @@ public:
 	/// certificates and keys
 	//-----------------------------------------------------------------------------
 	void start() override;
-
-protected:
-	//-----------------------------------------------------------------------------
-	/// Gets the password required.
-	//-----------------------------------------------------------------------------
-	std::string get_private_key_password(std::size_t max_length,
-										 asio::ssl::context::password_purpose purpose) const;
-	asio::ssl::context context_;
-	std::string password_;
 };
 
 template <typename protocol_type>
 inline basic_ssl_server<protocol_type>::basic_ssl_server(asio::io_service& io_context,
 														 const protocol_endpoint& listen_endpoint,
-														 const std::string& cert_chain_file,
-														 const std::string& private_key_file,
-														 const std::string& dh_file,
-														 const std::string& private_key_password)
+														 const ssl_config& config)
 	: base_type(io_context, listen_endpoint)
-	, context_(asio::ssl::context::tlsv12)
-	, password_(private_key_password)
+	, basic_ssl_entity(config)
 {
-	context_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2 |
-						 asio::ssl::context::single_dh_use);
-
-	// Setup password callback only if password was provided
-	if(!password_.empty())
-	{
-		context_.set_password_callback(std::bind(&basic_ssl_server::get_private_key_password, this,
-												 std::placeholders::_1, std::placeholders::_2));
-	}
-	context_.use_certificate_chain_file(cert_chain_file);
-	context_.use_private_key_file(private_key_file, asio::ssl::context::pem);
-
-	// Use DH Parameters only if provided
-	if(!dh_file.empty())
-	{
-		context_.use_tmp_dh_file(dh_file);
-	}
 }
 
 template <typename protocol_type>
@@ -128,18 +97,6 @@ inline void basic_ssl_server<protocol_type>::start()
 	};
 
 	this->async_accept(socket, std::move(on_connection_established));
-}
-
-template <typename protocol_type>
-inline std::string basic_ssl_server<protocol_type>::get_private_key_password(
-	std::size_t max_length, asio::ssl::context::password_purpose /*purpose*/) const
-{
-	if(password_.size() > max_length)
-	{
-		log() << "Provided password is too long.";
-		return {};
-	}
-	return password_;
 }
 }
 } // namespace net

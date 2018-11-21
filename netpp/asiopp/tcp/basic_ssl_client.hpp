@@ -1,14 +1,14 @@
 #pragma once
 #include "basic_client.hpp"
+#include "basic_ssl_entity.hpp"
 #include "compatibility.hpp"
-#include <asio/ssl.hpp>
 namespace net
 {
 namespace tcp
 {
 
 template <typename protocol_type>
-class basic_ssl_client : public basic_client<protocol_type>
+class basic_ssl_client : public basic_client<protocol_type>, public basic_ssl_entity
 {
 public:
 	using base_type = basic_client<protocol_type>;
@@ -22,7 +22,7 @@ public:
 	/// Constructor of ssl client accepting a connect endpoint and certificates.
 	//-----------------------------------------------------------------------------
 	basic_ssl_client(asio::io_service& io_context, const protocol_endpoint& endpoint,
-					 const std::string& cert_file);
+					 const ssl_config& config);
 
 	//-----------------------------------------------------------------------------
 	/// Starts the client attempting to connect to an endpoint.
@@ -30,41 +30,15 @@ public:
 	/// certificates and keys
 	//-----------------------------------------------------------------------------
 	void start() override;
-
-protected:
-	/// The internal ssl context
-	asio::ssl::context context_;
 };
-
-namespace detail
-{
-inline bool verify_certificate(bool preverified, asio::ssl::verify_context& ctx)
-{
-	// The verify callback can be used to check whether the certificate that is
-	// being presented is valid for the peer. For example, RFC 2818 describes
-	// the steps involved in doing this for HTTPS. Consult the OpenSSL
-	// documentation for more details. Note that the callback is called once
-	// for each certificate in the certificate chain, starting from the root
-	// certificate authority.
-
-	// In this example we will simply print the certificate's subject name.
-	char subject_name[256];
-	X509* cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
-	X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
-	log() << "Verifying " << subject_name;
-
-	return preverified;
-}
-}
 
 template <typename protocol_type>
 inline basic_ssl_client<protocol_type>::basic_ssl_client(asio::io_service& io_context,
 														 const protocol_endpoint& endpoint,
-														 const std::string& cert_file)
+														 const ssl_config& config)
 	: base_type(io_context, endpoint)
-	, context_(asio::ssl::context::sslv23)
+	, basic_ssl_entity(config)
 {
-	context_.load_verify_file(cert_file);
 }
 
 template <typename protocol_type>
@@ -81,8 +55,6 @@ inline void basic_ssl_client<protocol_type>::start()
 			return;
 		}
 		auto ssl_socket = compatibility::make_ssl_socket(std::move(*socket), context_);
-		ssl_socket->set_verify_mode(asio::ssl::verify_peer);
-		ssl_socket->set_verify_callback(detail::verify_certificate);
 
 		// Start the asynchronous handshake operation.
 		ssl_socket->async_handshake(asio::ssl::stream_base::client,

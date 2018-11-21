@@ -183,18 +183,40 @@ int main(int argc, char* argv[])
 	}
 	struct config
 	{
-		std::string address = "::1";
-		std::string multicast_address = "ff31::8000:1234";
-		std::string domain = "/tmp/test";
-		std::string cert_file = CERT_DIR "ca.pem";
-		std::string cert_chain_file = CERT_DIR "server.pem";
-		std::string private_key_file = CERT_DIR "server.pem";
-		std::string private_key_pass = "test";
-		std::string dh_file = CERT_DIR "dh2048.pem";
-		uint16_t port = 11111;
+		std::string address{};
+		std::string multicast_address{};
+		std::string domain{};
+		std::string cert_auth_file{};
+		std::string cert_chain_file{};
+		std::string private_key_file{};
+		std::string private_key_pass{};
+		std::string dh_file{};
+		uint16_t port{};
+
+		net::ssl_config ssl_client{};
+		net::ssl_config ssl_server{};
 	};
 
 	config conf;
+	conf.address = "::1";
+	conf.multicast_address = "ff31::8000:1234";
+	conf.domain = "/tmp/test";
+	conf.port = 11111;
+
+	conf.ssl_client.cert_auth_file = CERT_DIR "ca.pem";
+	;
+	conf.ssl_client.cert_chain_file = CERT_DIR "server.pem";
+	conf.ssl_client.private_key_file = CERT_DIR "server.pem";
+	conf.ssl_client.dh_file = CERT_DIR "dh2048.pem";
+	conf.ssl_client.private_key_password = "test";
+
+	conf.ssl_server.cert_auth_file = CERT_DIR "ca.pem";
+	;
+	conf.ssl_server.cert_chain_file = CERT_DIR "server.pem";
+	conf.ssl_server.private_key_file = CERT_DIR "server.pem";
+	conf.ssl_server.dh_file = CERT_DIR "dh2048.pem";
+	conf.ssl_server.private_key_password = "test";
+
 	std::remove(conf.domain.c_str());
 	// clang-format off
 
@@ -254,11 +276,12 @@ int main(int argc, char* argv[])
             "TCP SSL",
             [](const config& conf)
             {
-                return net::create_tcp_ssl_client(conf.address, conf.port, conf.cert_file);
+                return net::create_tcp_ssl_client(conf.address, conf.port, conf.ssl_client);
             },
             [](const config& conf)
             {
-                return net::create_tcp_ssl_server(conf.port, conf.cert_chain_file, conf.private_key_file, conf.dh_file, conf.private_key_pass);
+                net::ssl_config ssl_config;
+                return net::create_tcp_ssl_server(conf.port, conf.ssl_server);
             }
         ),
         std::make_tuple
@@ -278,21 +301,21 @@ int main(int argc, char* argv[])
             "TCP SSL LOCAL",
             [](const config& conf)
             {
-                return net::create_tcp_ssl_local_client(conf.domain, conf.cert_file);
+                return net::create_tcp_ssl_local_client(conf.domain, conf.ssl_client);
             },
             [](const config& conf)
             {
-                return net::create_tcp_ssl_local_server(conf.domain, conf.cert_chain_file, conf.private_key_file, conf.dh_file, conf.private_key_pass);
+                return net::create_tcp_ssl_local_server(conf.domain, conf.ssl_server);
             }
         )
     };
 	// clang-format on
 
-    auto info_logger = [](const std::string& msg) { std::cout << msg << std::endl; };
-    
-    itc::init_data init;
-    init.log_info = info_logger;
-    init.log_error = info_logger;
+	auto info_logger = [](const std::string& msg) { std::cout << msg << std::endl; };
+
+	itc::init_data init;
+	init.log_info = info_logger;
+	init.log_error = info_logger;
 	itc::init(init);
 	net::set_logger(info_logger);
 	net::init_services();

@@ -8,6 +8,14 @@ struct service_config
 	size_t workers = std::thread::hardware_concurrency();
 	std::function<void(std::thread&, const std::string&)> set_thread_name = nullptr;
 };
+struct ssl_config
+{
+	std::string cert_auth_file;
+	std::string cert_chain_file;
+	std::string private_key_file;
+	std::string dh_file;
+	std::string private_key_password;
+};
 
 //-----------------------------------------------------------------------------
 /// Init network services with specified config.
@@ -35,14 +43,12 @@ connector_ptr create_tcp_client(const std::string& host, uint16_t port);
 //-----------------------------------------------------------------------------
 /// Creates a secure tcp v4/v6 server
 //-----------------------------------------------------------------------------
-connector_ptr create_tcp_ssl_server(uint16_t port, const std::string& cert_chain_file,
-									const std::string& private_key_file, const std::string& dh_file,
-									const std::string& private_key_password = "");
+connector_ptr create_tcp_ssl_server(uint16_t port, const ssl_config& config = {});
 
 //-----------------------------------------------------------------------------
 /// Creates a secure tcp v4/v6 client
 //-----------------------------------------------------------------------------
-connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const std::string& cert_file);
+connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const ssl_config& config = {});
 
 //-----------------------------------------------------------------------------
 /// Creates a tcp local(domain socket) server.
@@ -60,15 +66,13 @@ connector_ptr create_tcp_local_client(const std::string& file);
 /// Creates a secure tcp local(domain socket) server.
 /// Only available on platforms that support unix domain sockets.
 //-----------------------------------------------------------------------------
-connector_ptr create_tcp_ssl_local_server(const std::string& file, const std::string& cert_chain_file,
-										  const std::string& private_key_file, const std::string& dh_file,
-										  const std::string& private_key_password = "");
+connector_ptr create_tcp_ssl_local_server(const std::string& file, const ssl_config& config = {});
 
 //-----------------------------------------------------------------------------
 /// Creates a secure tcp local(domain socket) client.
 /// Only available on platforms that support unix domain sockets.
 //-----------------------------------------------------------------------------
-connector_ptr create_tcp_ssl_local_client(const std::string& file, const std::string& cert_file);
+connector_ptr create_tcp_ssl_local_client(const std::string& file, const ssl_config& config = {});
 
 //-------//
 /// UDP ///
