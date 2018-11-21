@@ -21,15 +21,27 @@ struct serializer<T, std::stringstream, std::stringstream>
 		std::stringstream serializer;
 		serializer << msg;
 		auto str = serializer.str();
-		return byte_buffer{std::begin(str), std::end(str)};
+		return {std::begin(str), std::end(str)};
 	}
 	static T from_buffer(byte_buffer&& buffer)
 	{
-		std::stringstream deserializer;
-		deserializer << std::string{std::begin(buffer), std::end(buffer)};
+		std::stringstream deserializer({std::begin(buffer), std::end(buffer)});
 		T msg{};
 		deserializer >> msg;
 		return msg;
+	}
+};
+
+template <>
+struct serializer<std::string, std::stringstream, std::stringstream>
+{
+	static byte_buffer to_buffer(const std::string& msg)
+	{
+		return {std::begin(msg), std::end(msg)};
+	}
+	static std::string from_buffer(byte_buffer&& buffer)
+	{
+		return {std::begin(buffer), std::end(buffer)};
 	}
 };
 

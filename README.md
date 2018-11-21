@@ -14,21 +14,34 @@ namespace net
 template <typename T>
 struct serializer<T, std::stringstream, std::stringstream>
 {
-	static byte_buffer to_buffer(const T& msg)
-	{
-		std::stringstream serializer;
-		serializer << msg;
-		auto str = serializer.str();
-		return byte_buffer{std::begin(str), std::end(str)};
-	}
-	static T from_buffer(byte_buffer&& buffer)
-	{
-		std::stringstream deserializer;
-		deserializer << std::string{std::begin(buffer), std::end(buffer)};
-		T msg{};
-		deserializer >> msg;
-		return msg;
-	}
+    static byte_buffer to_buffer(const T& msg)
+    {
+        std::stringstream serializer;
+        serializer << msg;
+        auto str = serializer.str();
+        return {std::begin(str), std::end(str)};
+    }
+    static T from_buffer(byte_buffer&& buffer)
+    {
+        std::stringstream deserializer({std::begin(buffer), std::end(buffer)});
+        T msg{};
+        deserializer >> msg;
+        return msg;
+    }
+};
+
+// specialized for std::string to respect the white spaces
+template <>
+struct serializer<std::string, std::stringstream, std::stringstream>
+{
+    static byte_buffer to_buffer(const std::string& msg)
+    {
+        return {std::begin(msg), std::end(msg)};
+    }
+    static std::string from_buffer(byte_buffer&& buffer)
+    {
+        return {std::begin(buffer), std::end(buffer)};
+    }
 };
 // Get a messenger for your type of message and the serialization streams used
 // to convert your (T) to byte_buffer.
@@ -36,7 +49,7 @@ struct serializer<T, std::stringstream, std::stringstream>
 template <typename T>
 auto get_network()
 {
-	return get_messenger<T, std::stringstream, std::stringstream>();
+    return get_messenger<T, std::stringstream, std::stringstream>();
 }
 }
 
