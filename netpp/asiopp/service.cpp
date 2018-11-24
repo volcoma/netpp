@@ -9,6 +9,7 @@
 #include "udp/basic_reciever.h"
 #include "udp/basic_sender.h"
 
+#include <asio/ip/host_name.hpp>
 #include <asio/ip/tcp.hpp>
 #include <asio/ip/udp.hpp>
 #ifdef ASIO_HAS_LOCAL_SOCKETS
@@ -397,7 +398,6 @@ connector_ptr create_udp_multicast_client(const std::string& multicast_address, 
 
 connector_ptr create_udp_broadcast_server(uint16_t port)
 {
-	asio::ip::address_v4::broadcast();
 	auto& net_context = get_io_context();
 	auto address = asio::ip::address_v4::broadcast();
 	asio::ip::udp::endpoint endpoint(address, port);
@@ -425,6 +425,38 @@ connector_ptr create_udp_broadcast_client(uint16_t port)
 		log() << this_func << " Failed for endpoint - " << listen_endpoint << " : " << e.what();
 	}
 	return nullptr;
+}
+
+std::string host_name()
+{
+	return asio::ip::host_name();
+}
+
+std::vector<std::string> host_addresses(uint32_t v_flags, uint32_t t_flags)
+{
+	std::vector<std::string> result;
+	auto host = host_name();
+
+	auto& net_context = get_io_context();
+	asio::ip::tcp::resolver r(net_context);
+	std::for_each(r.resolve({host, ""}), {}, [&](const auto& re) {
+		auto address = re.endpoint().address();
+
+		bool v_add = false;
+		v_add |= (v_flags & version_flags::v4) && address.is_v4();
+		v_add |= (v_flags & version_flags::v6) && address.is_v6();
+
+		bool t_add = false;
+		t_add |= (t_flags & type_flags::unicast) && !address.is_multicast();
+		t_add |= (t_flags & type_flags::multicast) && address.is_multicast();
+
+		if(v_add & t_add)
+		{
+			result.emplace_back(address.to_string());
+		}
+	});
+
+	return result;
 }
 
 } // namespace net

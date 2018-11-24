@@ -216,20 +216,19 @@ int main(int argc, char* argv[])
 	conf.port = 11111;
 
 	conf.ssl_client.cert_auth_file = CERT_DIR "ca.pem";
-	;
+
 	conf.ssl_client.cert_chain_file = CERT_DIR "server.pem";
 	conf.ssl_client.private_key_file = CERT_DIR "server.pem";
 	conf.ssl_client.dh_file = CERT_DIR "dh2048.pem";
 	conf.ssl_client.private_key_password = "test";
 
 	conf.ssl_server.cert_auth_file = CERT_DIR "ca.pem";
-	;
+
 	conf.ssl_server.cert_chain_file = CERT_DIR "server.pem";
 	conf.ssl_server.private_key_file = CERT_DIR "server.pem";
 	conf.ssl_server.dh_file = CERT_DIR "dh2048.pem";
 	conf.ssl_server.private_key_password = "test";
 
-	std::remove(conf.domain.c_str());
 	// clang-format off
 
     using creator = std::function<net::connector_ptr(config)>;

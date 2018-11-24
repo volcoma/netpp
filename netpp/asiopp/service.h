@@ -116,4 +116,32 @@ connector_ptr create_udp_broadcast_server(uint16_t port);
 /// Consider Using multicast.
 //-----------------------------------------------------------------------------
 connector_ptr create_udp_broadcast_client(uint16_t port);
+
+namespace version_flags
+{
+enum
+{
+	none = 0,
+	v4 = 1 << 1,
+	v6 = 1 << 2,
+
+	all = v4 | v6
+};
+}
+
+namespace type_flags
+{
+enum
+{
+	none = 0,
+	unicast = 1 << 1,
+	multicast = 1 << 2,
+
+	all = unicast | multicast
+};
+}
+std::string host_name();
+std::vector<std::string> host_addresses(uint32_t v_flags = version_flags::all,
+										uint32_t t_flags = type_flags::all);
+
 } // namespace net
