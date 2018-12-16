@@ -57,9 +57,9 @@ size_t from_bytes(T& data, const uint8_t* src)
 
 single_buffer_builder::single_buffer_builder()
 {
-    op_.type = op_type::read_bytes;
-    op_.bytes = sizeof(header_size_t);
-    state_ = state::read_header_size;
+	op_.type = op_type::read_bytes;
+	op_.bytes = sizeof(header_size_t);
+	state_ = state::read_header_size;
 }
 
 size_t single_buffer_builder::get_header_size()
@@ -93,10 +93,10 @@ bool single_buffer_builder::process_operation(size_t size)
 	}
 
 	bool ready = false;
-    switch(state_)
-    {
-        case state::read_header_size:
-        {
+	switch(state_)
+	{
+		case state::read_header_size:
+		{
 			// read header size
 			header_size_t header_size = 0;
 			utils::from_bytes(header_size, msg_.data());
@@ -106,7 +106,7 @@ bool single_buffer_builder::process_operation(size_t size)
 			}
 
 			msg_.clear();
-            set_next_operation(op_type::read_bytes, header_size - sizeof(header_size_t), state::read_header);
+			set_next_operation(op_type::read_bytes, header_size - sizeof(header_size_t), state::read_header);
 		}
 		break;
 		case state::read_header:
@@ -122,14 +122,14 @@ bool single_buffer_builder::process_operation(size_t size)
 			(void)offset;
 			channel_ = channel;
 			msg_.clear();
-            set_next_operation(op_type::read_bytes, payload_size, state::read_payload);
+			set_next_operation(op_type::read_bytes, payload_size, state::read_payload);
 		}
 		break;
 
 		case state::read_payload:
 		{
 			ready = true;
-            set_next_operation(op_type::read_bytes, sizeof(header_size_t), state::read_header_size);
+			set_next_operation(op_type::read_bytes, sizeof(header_size_t), state::read_header_size);
 		}
 		break;
 	}
@@ -154,9 +154,9 @@ byte_buffer& single_buffer_builder::get_work_buffer()
 
 void single_buffer_builder::set_next_operation(msg_builder::op_type type, size_t size, state st)
 {
-    op_.type = type;
-    op_.bytes = size;
-    state_ = st;
+	op_.type = type;
+	op_.bytes = size;
+	state_ = st;
 }
 
 } // namespace net

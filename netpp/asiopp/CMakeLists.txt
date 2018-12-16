@@ -12,8 +12,8 @@ target_include_directories(${target_name}
 
 set_target_properties(${target_name} PROPERTIES
     CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS NO
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
     POSITION_INDEPENDENT_CODE ON
 	WINDOWS_EXPORT_ALL_SYMBOLS ON
 )

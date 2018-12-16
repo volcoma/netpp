@@ -10,8 +10,8 @@ target_link_libraries(${target_name} PUBLIC messengerpp builderpp asiopp)
 
 set_target_properties(${target_name} PROPERTIES
     CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS NO
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
 )
 
 target_compile_definitions(${target_name} PUBLIC CERT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/certificates/")

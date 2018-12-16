@@ -95,17 +95,17 @@ inline void tcp_connection<socket_type>::handle_read(const error_code& ec, std::
 		{
 			is_ready = this->builder->process_operation(size);
 		}
-        catch(const std::exception& e)
-        {
-            log() << e.what();
-            this->stop(make_error_code(errc::data_corruption));
-            return;
-        }
-        catch(...)
-        {
-            this->stop(make_error_code(errc::data_corruption));
-            return;
-        }
+		catch(const std::exception& e)
+		{
+			log() << e.what();
+			this->stop(make_error_code(errc::data_corruption));
+			return;
+		}
+		catch(...)
+		{
+			this->stop(make_error_code(errc::data_corruption));
+			return;
+		}
 
 		if(is_ready)
 		{
@@ -120,6 +120,10 @@ inline void tcp_connection<socket_type>::handle_read(const error_code& ec, std::
 				{
 					callback(this->id, msg, channel);
 				}
+			}
+			else
+			{
+				this->send_heartbeat();
 			}
 		}
 		start_read();

@@ -23,13 +23,12 @@ inline basic_ssl_entity::basic_ssl_entity(const ssl_config& config)
 	context_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2 |
 						 asio::ssl::context::single_dh_use);
 
-
 	if(!config.cert_chain_file.empty())
 	{
 		context_.use_certificate_chain_file(config.cert_chain_file);
 	}
 
-    if(!config.cert_auth_file.empty())
+	if(!config.cert_auth_file.empty())
 	{
 		context_.load_verify_file(config.cert_auth_file);
 		context_.set_verify_mode(asio::ssl::verify_peer);
@@ -61,8 +60,7 @@ inline basic_ssl_entity::basic_ssl_entity(const ssl_config& config)
 		});
 	}
 
-
-    // Setup password callback only if password was provided
+	// Setup password callback only if password was provided
 	if(!config.private_key_password.empty())
 	{
 		// clang-format off
@@ -89,7 +87,6 @@ inline basic_ssl_entity::basic_ssl_entity(const ssl_config& config)
 	{
 		context_.use_tmp_dh_file(config.dh_file);
 	}
-
 }
 }
 } // namespace net

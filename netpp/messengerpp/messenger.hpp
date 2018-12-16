@@ -41,7 +41,7 @@ typename messenger<T, OArchive, IArchive>::ptr messenger<T, OArchive, IArchive>:
 }
 
 template <typename T, typename OArchive, typename IArchive>
-connector::id_t messenger<T, OArchive, IArchive>::add_connector(const connector_ptr& connector,
+connector::id_t messenger<T, OArchive, IArchive>::add_connector(connector_ptr connector,
 																on_connect_t on_connect,
 																on_disconnect_t on_disconnect,
 																on_msg_t on_msg, on_request_t on_request)
@@ -67,8 +67,9 @@ connector::id_t messenger<T, OArchive, IArchive>::add_connector(const connector_
 	info->on_disconnect = std::move(on_disconnect);
 	info->on_msg = std::move(on_msg);
 	info->on_request = std::move(on_request);
+
 	info->thread_id = itc::this_thread::get_id();
-    info->connector_id = connector_id;
+	info->connector_id = connector_id;
 
 	auto weak_this = weak_ptr(this->shared_from_this());
 
@@ -108,17 +109,19 @@ typename messenger<T, OArchive, IArchive>::future_t
 messenger<T, OArchive, IArchive>::send_request(connection::id_t id, msg_t&& msg)
 {
 	static std::atomic<uint64_t> ids = {1};
-	promise_t promise;
-	auto future = promise.get_future();
-	auto request_id = ids++;
 	std::unique_lock<std::mutex> lock(guard_);
 
 	auto conn_it = connections_.find(id);
 	if(conn_it == std::end(connections_))
 	{
-		return future;
+		return {};
 	}
+
+	promise_t promise;
+	auto future = promise.get_future();
+	auto request_id = ids++;
 	auto& conn_info = conn_it->second;
+
 	conn_info.promises[request_id] = std::move(promise);
 	// get a copy so that we can unlock
 	// and work on unlocked mutex
@@ -168,6 +171,25 @@ bool messenger<T, OArchive, IArchive>::empty() const
 {
 	std::lock_guard<std::mutex> lock(guard_);
 	return connectors_.empty() && connections_.empty();
+}
+
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::add_heartbeat(connection::id_t id, std::chrono::seconds duration)
+{
+	std::unique_lock<std::mutex> lock(guard_);
+
+	auto conn_it = connections_.find(id);
+	if(conn_it == std::end(connections_))
+	{
+		return;
+	}
+	auto& conn_info = conn_it->second;
+
+	auto connection = conn_info.connection;
+
+	lock.unlock();
+
+	connection->start_heartbeat(duration);
 }
 
 template <typename T, typename OArchive, typename IArchive>
@@ -252,11 +274,11 @@ void messenger<T, OArchive, IArchive>::on_disconnect(connection::id_t id, error_
 		std::lock_guard<std::mutex> lock(guard_);
 		connections_.erase(id);
 
-        // Also remove connector if the data is corrupt
-        if(is_data_corruption_error(ec))
-        {
-            connectors_.erase(info->connector_id);
-        }
+		// Also remove connector if the data is corrupt
+		if(is_data_corruption_error(ec))
+		{
+			connectors_.erase(info->connector_id);
+		}
 	}
 	if(info->on_disconnect)
 	{
@@ -286,26 +308,27 @@ void messenger<T, OArchive, IArchive>::on_raw_msg(connection::id_t id, byte_buff
 			{
 				on_response(id, msg, channel);
 			}
-            else
-            {
-                disconnect(id, make_error_code(errc::data_corruption));
-            }
-        }
-    }
-    catch(const std::exception& e)
-    {
-        log() << e.what();
-        disconnect(id, make_error_code(errc::data_corruption));
-    }
-    catch(...)
-    {
-        disconnect(id, make_error_code(errc::data_corruption));
-    }
+			else
+			{
+				disconnect(id, make_error_code(errc::data_corruption));
+			}
+		}
+	}
+	catch(const std::exception& e)
+	{
+		log() << e.what();
+		disconnect(id, make_error_code(errc::data_corruption));
+	}
+	catch(...)
+	{
+		disconnect(id, make_error_code(errc::data_corruption));
+	}
 }
 
 template <typename T, typename OArchive, typename IArchive>
 void messenger<T, OArchive, IArchive>::on_msg(connection::id_t id, msg_t& msg, const user_info_ptr& info)
 {
+
 	if(info->on_msg)
 	{
 		itc::invoke(info->thread_id, info->on_msg, id, std::move(msg));

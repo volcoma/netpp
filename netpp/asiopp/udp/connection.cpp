@@ -89,17 +89,17 @@ void udp_connection::handle_read(const error_code& ec, std::size_t)
 				{
 					is_ready = builder->process_operation(operation.bytes);
 				}
-                catch(const std::exception& e)
-                {
-                    log() << e.what();
-                    stop(make_error_code(errc::data_corruption));
-                    return;
-                }
-                catch(...)
-                {
-                    stop(make_error_code(errc::data_corruption));
-                    return;
-                }
+				catch(const std::exception& e)
+				{
+					log() << e.what();
+					stop(make_error_code(errc::data_corruption));
+					return;
+				}
+				catch(...)
+				{
+					stop(make_error_code(errc::data_corruption));
+					return;
+				}
 
 				if(is_ready)
 				{

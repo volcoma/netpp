@@ -57,7 +57,6 @@ public:
 	using on_disconnect_t = std::function<void(connection::id_t, const error_code&)>;
 	using on_msg_t = std::function<void(connection::id_t, msg_t)>;
 	using on_request_t = std::function<void(connection::id_t, promise_t, msg_t)>;
-
 	//-----------------------------------------------------------------------------
 	/// Creates a messenger
 	//-----------------------------------------------------------------------------
@@ -80,7 +79,7 @@ public:
 	/// 'on_request' - callback to be triggered when a new request that expects a
 	/// response is received from a specific connection.
 	//-----------------------------------------------------------------------------
-	connector::id_t add_connector(const connector_ptr& connector, on_connect_t on_connect,
+	connector::id_t add_connector(connector_ptr connector, on_connect_t on_connect,
 								  on_disconnect_t on_disconnect, on_msg_t on_msg,
 								  on_request_t on_request = nullptr);
 
@@ -115,20 +114,22 @@ public:
 
 	bool empty() const;
 
+	void add_heartbeat(connection::id_t id, std::chrono::seconds duration);
+
 private:
 	messenger() = default;
 
 	struct user_info
 	{
-		on_connect_t on_connect;
-		on_disconnect_t on_disconnect;
-		on_msg_t on_msg;
-		on_request_t on_request;
-		itc::thread::id thread_id = itc::invalid_id();
-        connector::id_t connector_id = 0;
+		on_connect_t on_connect{};
+		on_disconnect_t on_disconnect{};
+		on_msg_t on_msg{};
+		on_request_t on_request{};
+
+		itc::thread::id thread_id{itc::invalid_id()};
+		connector::id_t connector_id{};
 	};
 	using user_info_ptr = std::shared_ptr<user_info>;
-	using user_info_weak_ptr = std::weak_ptr<user_info>;
 
 	struct connection_info
 	{
@@ -146,6 +147,7 @@ private:
 	void on_request(connection::id_t id, msg_t& msg, uint64_t request_id, const user_info_ptr& info);
 	void on_response(connection::id_t id, msg_t& msg, uint64_t response_id);
 	void send(connection::id_t id, msg_t& msg, data_channel channel);
+
 	/// lock for container synchronization
 	mutable std::mutex guard_;
 	std::map<connector::id_t, connector_ptr> connectors_;

@@ -63,6 +63,10 @@ public:
 	//-----------------------------------------------------------------------------
 	void handle_write(const error_code& ec) override;
 
+	void start_heartbeat(std::chrono::seconds) override
+	{
+	}
+
 private:
 	/// Endpoint used for sending
 	udp::endpoint endpoint_;
