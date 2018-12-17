@@ -58,7 +58,6 @@ template <typename socket_type>
 class asio_connection : public connection, public std::enable_shared_from_this<asio_connection<socket_type>>
 {
 public:
-	using weak_ptr = typename std::weak_ptr<asio_connection<socket_type>>;
 	//-----------------------------------------------------------------------------
 	/// Constructor of connection accepting a ready socket.
 	//-----------------------------------------------------------------------------

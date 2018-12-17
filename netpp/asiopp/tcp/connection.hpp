@@ -70,9 +70,9 @@ public:
 
 private:
 	//-----------------------------------------------------------------------------
-	/// Start a heartbeat cycle.
+	/// Checks if the heartbeat conditions are respected.
 	//-----------------------------------------------------------------------------
-	void start_heartbeat();
+	void check_heartbeat();
 
 	//-----------------------------------------------------------------------------
 	/// Sends a heartbeat.
@@ -80,19 +80,26 @@ private:
 	void send_heartbeat();
 
 	//-----------------------------------------------------------------------------
+	/// Shedules a heartbeat.
+	//-----------------------------------------------------------------------------
+	void schedule_heartbeat();
+
+	//-----------------------------------------------------------------------------
 	/// Awaits for the heartbeat timer.
 	//-----------------------------------------------------------------------------
 	void await_heartbeat();
 
 	//-----------------------------------------------------------------------------
-	/// Checks if the heartbeat conditions are respected.
+	/// Updates a heartbeat
 	//-----------------------------------------------------------------------------
-	void handle_heartbeat();
+	void update_heartbeat_timestamp();
 
 	/// heartbeat interval
-	std::chrono::seconds heartbeat_;
+	std::chrono::seconds heartbeat_check_interval_;
 	/// a steady timer to tick for heartbeat checks
-	asio::steady_timer heartbeat_timer_;
+	asio::steady_timer heartbeat_check_timer_;
+	/// a steady timer to issue a heartbeat reply
+	asio::steady_timer heartbeat_reply_timer_;
 	/// the last time a heartbeat was sent/recieved
 	std::atomic<asio::steady_timer::duration> heartbeat_timestamp_{};
 };
@@ -102,10 +109,13 @@ inline tcp_connection<socket_type>::tcp_connection(std::shared_ptr<socket_type> 
 												   const msg_builder::creator& builder_creator,
 												   asio::io_service& context, std::chrono::seconds heartbeat)
 	: base_type(socket, builder_creator, context)
-	, heartbeat_(heartbeat)
-	, heartbeat_timer_(context)
+	, heartbeat_check_interval_(heartbeat)
+	, heartbeat_check_timer_(context)
+	, heartbeat_reply_timer_(context)
+
 {
-	heartbeat_timer_.expires_at(asio::steady_timer::time_point::max());
+	heartbeat_check_timer_.expires_at(asio::steady_timer::time_point::max());
+	heartbeat_reply_timer_.expires_at(asio::steady_timer::time_point::max());
 }
 
 template <typename socket_type>
@@ -113,9 +123,10 @@ inline void tcp_connection<socket_type>::start()
 {
 	base_type::start();
 
-	if(heartbeat_ > std::chrono::seconds::zero())
+	if(heartbeat_check_interval_ > std::chrono::seconds::zero())
 	{
-		start_heartbeat();
+		send_heartbeat();
+		await_heartbeat();
 	}
 }
 template <typename socket_type>
@@ -123,7 +134,8 @@ inline void tcp_connection<socket_type>::stop(const error_code& ec)
 {
 	{
 		std::lock_guard<std::mutex> lock(this->guard_);
-		heartbeat_timer_.cancel();
+		heartbeat_check_timer_.cancel();
+		heartbeat_reply_timer_.cancel();
 	}
 
 	base_type::stop(ec);
@@ -195,7 +207,7 @@ inline void tcp_connection<socket_type>::handle_read(const error_code& ec, std::
 			}
 			else
 			{
-				this->send_heartbeat();
+				schedule_heartbeat();
 			}
 		}
 		start_read();
@@ -250,21 +262,31 @@ inline void tcp_connection<socket_type>::handle_write(const error_code& ec)
 }
 
 template <typename socket_type>
-inline void tcp_connection<socket_type>::start_heartbeat()
+inline void tcp_connection<socket_type>::schedule_heartbeat()
 {
-	auto is_heartbeat_already_running = [&]() {
-		std::lock_guard<std::mutex> lock(this->guard_);
-		return this->heartbeat_timer_.expiry() != asio::steady_timer::time_point::max();
-	};
+	update_heartbeat_timestamp();
 
-	if(is_heartbeat_already_running())
-	{
-		return;
-	}
+	std::lock_guard<std::mutex> lock(this->guard_);
 
-	this->send_heartbeat();
+	using namespace std::chrono_literals;
+	heartbeat_reply_timer_.expires_after(1s);
+	heartbeat_reply_timer_.async_wait([this, sentinel = this->shared_from_this()](const error_code& ec) {
+		if(this->stopped())
+		{
+			return;
+		}
 
-	this->await_heartbeat();
+		if(!ec)
+		{
+			this->send_heartbeat();
+		}
+	});
+}
+
+template <typename socket_type>
+inline void tcp_connection<socket_type>::update_heartbeat_timestamp()
+{
+	this->heartbeat_timestamp_ = asio::steady_timer::clock_type::now().time_since_epoch();
 }
 
 template <typename socket_type>
@@ -273,8 +295,7 @@ inline void tcp_connection<socket_type>::send_heartbeat()
 	// send heartbeat
 	this->send_msg({}, 0);
 
-	//
-	this->heartbeat_timestamp_ = asio::steady_timer::clock_type::now().time_since_epoch();
+	update_heartbeat_timestamp();
 }
 
 template <typename socket_type>
@@ -287,31 +308,36 @@ inline void tcp_connection<socket_type>::await_heartbeat()
 
 	std::lock_guard<std::mutex> lock(this->guard_);
 	// Wait before checking the heartbeat.
-	this->heartbeat_timer_.expires_after(heartbeat_);
-	this->heartbeat_timer_.async_wait(std::bind(&tcp_connection::handle_heartbeat, this));
+	heartbeat_check_timer_.expires_after(heartbeat_check_interval_);
+	heartbeat_check_timer_.async_wait([this, sentinel = this->shared_from_this()](const error_code& ec) {
+		if(this->stopped())
+		{
+			return;
+		}
+
+		if(!ec)
+		{
+			this->check_heartbeat();
+		}
+	});
 }
 
 template <typename socket_type>
-inline void tcp_connection<socket_type>::handle_heartbeat()
+inline void tcp_connection<socket_type>::check_heartbeat()
 {
-	if(this->stopped())
-	{
-		return;
-	}
-
 	std::chrono::steady_clock::duration timestamp{this->heartbeat_timestamp_};
 	std::chrono::steady_clock::time_point heartbeat_timestamp{timestamp};
 	auto now = asio::steady_timer::clock_type::now();
 	auto time_since_last_heartbeat =
 		std::chrono::duration_cast<std::chrono::seconds>(now - heartbeat_timestamp);
 
-	if(time_since_last_heartbeat > heartbeat_)
+	if(time_since_last_heartbeat > heartbeat_check_interval_)
 	{
 		this->stop(make_error_code(errc::host_unreachable));
 	}
 	else
 	{
-		this->await_heartbeat();
+		await_heartbeat();
 	}
 }
 }

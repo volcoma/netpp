@@ -90,7 +90,7 @@ template <typename protocol_type>
 template <typename socket_type, typename F>
 inline void basic_client<protocol_type>::async_connect(socket_type& socket, F f)
 {
-	log() << "Trying to connect to " << endpoint_ << " ...";
+	//log() << "Trying to connect to " << endpoint_ << " ...";
 
 	auto weak_this = weak_ptr(this->shared_from_this());
 
