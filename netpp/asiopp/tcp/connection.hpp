@@ -30,7 +30,19 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Inherited constructors
 	//-----------------------------------------------------------------------------
-	using base_type::base_type;
+	tcp_connection(std::shared_ptr<socket_type> socket, const msg_builder::creator& builder_creator,
+				   asio::io_service& context, std::chrono::seconds heartbeat);
+
+	//-----------------------------------------------------------------------------
+	/// Starts the connection. Awaiting input and output
+	//-----------------------------------------------------------------------------
+	void start() override;
+
+	//-----------------------------------------------------------------------------
+	/// Stops the connection with the specified error code.
+	/// Can be called internally from a failed async operation
+	//-----------------------------------------------------------------------------
+	void stop(const error_code& ec) override;
 
 	//-----------------------------------------------------------------------------
 	/// Starts the async read operation awaiting for data
@@ -55,7 +67,67 @@ public:
 	/// or an error occured.
 	//-----------------------------------------------------------------------------
 	void handle_write(const error_code& ec) override;
+
+private:
+	//-----------------------------------------------------------------------------
+	/// Start a heartbeat cycle.
+	//-----------------------------------------------------------------------------
+	void start_heartbeat();
+
+	//-----------------------------------------------------------------------------
+	/// Sends a heartbeat.
+	//-----------------------------------------------------------------------------
+	void send_heartbeat();
+
+	//-----------------------------------------------------------------------------
+	/// Awaits for the heartbeat timer.
+	//-----------------------------------------------------------------------------
+	void await_heartbeat();
+
+	//-----------------------------------------------------------------------------
+	/// Checks if the heartbeat conditions are respected.
+	//-----------------------------------------------------------------------------
+	void handle_heartbeat();
+
+	/// heartbeat interval
+	std::chrono::seconds heartbeat_;
+	/// a steady timer to tick for heartbeat checks
+	asio::steady_timer heartbeat_timer_;
+	/// the last time a heartbeat was sent/recieved
+	std::atomic<asio::steady_timer::duration> heartbeat_timestamp_{};
 };
+
+template <typename socket_type>
+inline tcp_connection<socket_type>::tcp_connection(std::shared_ptr<socket_type> socket,
+												   const msg_builder::creator& builder_creator,
+												   asio::io_service& context, std::chrono::seconds heartbeat)
+	: base_type(socket, builder_creator, context)
+	, heartbeat_(heartbeat)
+	, heartbeat_timer_(context)
+{
+	heartbeat_timer_.expires_at(asio::steady_timer::time_point::max());
+}
+
+template <typename socket_type>
+inline void tcp_connection<socket_type>::start()
+{
+	base_type::start();
+
+	if(heartbeat_ > std::chrono::seconds::zero())
+	{
+		start_heartbeat();
+	}
+}
+template <typename socket_type>
+inline void tcp_connection<socket_type>::stop(const error_code& ec)
+{
+	{
+		std::lock_guard<std::mutex> lock(this->guard_);
+		heartbeat_timer_.cancel();
+	}
+
+	base_type::stop(ec);
+}
 
 template <typename socket_type>
 inline void tcp_connection<socket_type>::start_read()
@@ -174,6 +246,72 @@ inline void tcp_connection<socket_type>::handle_write(const error_code& ec)
 	else
 	{
 		this->stop(ec);
+	}
+}
+
+template <typename socket_type>
+inline void tcp_connection<socket_type>::start_heartbeat()
+{
+	auto is_heartbeat_already_running = [&]() {
+		std::lock_guard<std::mutex> lock(this->guard_);
+		return this->heartbeat_timer_.expiry() != asio::steady_timer::time_point::max();
+	};
+
+	if(is_heartbeat_already_running())
+	{
+		return;
+	}
+
+	this->send_heartbeat();
+
+	this->await_heartbeat();
+}
+
+template <typename socket_type>
+inline void tcp_connection<socket_type>::send_heartbeat()
+{
+	// send heartbeat
+	this->send_msg({}, 0);
+
+	//
+	this->heartbeat_timestamp_ = asio::steady_timer::clock_type::now().time_since_epoch();
+}
+
+template <typename socket_type>
+inline void tcp_connection<socket_type>::await_heartbeat()
+{
+	if(this->stopped())
+	{
+		return;
+	}
+
+	std::lock_guard<std::mutex> lock(this->guard_);
+	// Wait before checking the heartbeat.
+	this->heartbeat_timer_.expires_after(heartbeat_);
+	this->heartbeat_timer_.async_wait(std::bind(&tcp_connection::handle_heartbeat, this));
+}
+
+template <typename socket_type>
+inline void tcp_connection<socket_type>::handle_heartbeat()
+{
+	if(this->stopped())
+	{
+		return;
+	}
+
+	std::chrono::steady_clock::duration timestamp{this->heartbeat_timestamp_};
+	std::chrono::steady_clock::time_point heartbeat_timestamp{timestamp};
+	auto now = asio::steady_timer::clock_type::now();
+	auto time_since_last_heartbeat =
+		std::chrono::duration_cast<std::chrono::seconds>(now - heartbeat_timestamp);
+
+	if(time_since_last_heartbeat > heartbeat_)
+	{
+		this->stop(make_error_code(errc::host_unreachable));
+	}
+	else
+	{
+		this->await_heartbeat();
 	}
 }
 }

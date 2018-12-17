@@ -117,26 +117,6 @@ protected:
 	//-----------------------------------------------------------------------------
 	void await_output();
 
-	//-----------------------------------------------------------------------------
-	/// Start a heartbeat cycle.
-	//-----------------------------------------------------------------------------
-	void start_heartbeat(std::chrono::seconds duration) override;
-
-	//-----------------------------------------------------------------------------
-	/// Sends a heartbeat.
-	//-----------------------------------------------------------------------------
-	void send_heartbeat();
-
-	//-----------------------------------------------------------------------------
-	/// Awaits for the heartbeat timer.
-	//-----------------------------------------------------------------------------
-	void await_heartbeat(std::chrono::seconds duration);
-
-	//-----------------------------------------------------------------------------
-	/// Checks if the heartbeat conditions are respected.
-	//-----------------------------------------------------------------------------
-	void handle_heartbeat(std::chrono::seconds duration);
-
 	/// guard for shared data access
 	mutable std::mutex guard_;
 
@@ -156,12 +136,6 @@ protected:
 	/// Access to this member should be guarded by a lock
 	asio::steady_timer non_empty_output_queue_;
 
-	/// a steady timer to tick for heartbeat checks
-	asio::steady_timer heartbeat_timer_;
-
-	/// the last time a heartbeat was sent/recieved
-	std::atomic<asio::steady_timer::duration> heartbeat_timestamp_{};
-
 	/// a security flag to tell us if we are still connected.
 	std::atomic<bool> connected_{false};
 };
@@ -173,14 +147,12 @@ inline asio_connection<socket_type>::asio_connection(std::shared_ptr<socket_type
 	: strand_(context)
 	, socket_(std::move(socket))
 	, non_empty_output_queue_(context)
-	, heartbeat_timer_(context)
 {
 	socket_->lowest_layer().non_blocking(true);
 	// The non_empty_output_queue_ steady_timer is set to the maximum time
 	// point whenever the output queue is empty. This ensures that the output
 	// actor stays asleep until a message is put into the queue.
 	non_empty_output_queue_.expires_at(asio::steady_timer::time_point::max());
-	heartbeat_timer_.expires_at(asio::steady_timer::time_point::max());
 
 	builder = builder_creator();
 }
@@ -198,7 +170,6 @@ inline void asio_connection<socket_type>::stop(const error_code& ec)
 	{
 		std::lock_guard<std::mutex> lock(guard_);
 		non_empty_output_queue_.cancel();
-		heartbeat_timer_.cancel();
 
 		auto& service = socket_->get_io_service();
 		service.post(strand_.wrap([socket = socket_]() {
@@ -266,73 +237,6 @@ inline void asio_connection<socket_type>::await_output()
 	if(!check_if_empty())
 	{
 		start_write();
-	}
-}
-
-template <typename socket_type>
-inline void asio_connection<socket_type>::start_heartbeat(std::chrono::seconds duration)
-{
-	auto is_heartbeat_already_running = [&]() {
-		std::lock_guard<std::mutex> lock(this->guard_);
-		return this->heartbeat_timer_.expiry() != asio::steady_timer::time_point::max();
-	};
-
-	if(is_heartbeat_already_running())
-	{
-		return;
-	}
-
-	this->send_heartbeat();
-
-	this->await_heartbeat(duration);
-}
-
-template <typename socket_type>
-inline void asio_connection<socket_type>::send_heartbeat()
-{
-	// send heartbeat
-	this->send_msg({}, 0);
-
-	//
-	this->heartbeat_timestamp_ = asio::steady_timer::clock_type::now().time_since_epoch();
-}
-
-template <typename socket_type>
-inline void asio_connection<socket_type>::await_heartbeat(std::chrono::seconds duration)
-{
-	if(stopped())
-	{
-		return;
-	}
-
-	std::lock_guard<std::mutex> lock(this->guard_);
-	// Wait before checking the heartbeat.
-	this->heartbeat_timer_.expires_after(duration);
-	this->heartbeat_timer_.async_wait(
-		std::bind(&asio_connection::handle_heartbeat, this->shared_from_this(), duration));
-}
-
-template <typename socket_type>
-inline void asio_connection<socket_type>::handle_heartbeat(std::chrono::seconds duration)
-{
-	if(stopped())
-	{
-		return;
-	}
-
-	std::chrono::steady_clock::duration timestamp{this->heartbeat_timestamp_};
-	std::chrono::steady_clock::time_point heartbeat_timestamp{timestamp};
-	auto now = asio::steady_timer::clock_type::now();
-	auto time_since_last_heartbeat =
-		std::chrono::duration_cast<std::chrono::seconds>(now - heartbeat_timestamp);
-
-	if(time_since_last_heartbeat > duration)
-	{
-		stop(make_error_code(errc::host_unreachable));
-	}
-	else
-	{
-		await_heartbeat(duration);
 	}
 }
 

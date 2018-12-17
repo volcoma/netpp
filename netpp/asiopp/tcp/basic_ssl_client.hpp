@@ -22,7 +22,7 @@ public:
 	/// Constructor of ssl client accepting a connect endpoint and certificates.
 	//-----------------------------------------------------------------------------
 	basic_ssl_client(asio::io_service& io_context, const protocol_endpoint& endpoint,
-					 const ssl_config& config);
+					 const ssl_config& config, std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 	//-----------------------------------------------------------------------------
 	/// Starts the client attempting to connect to an endpoint.
@@ -35,8 +35,9 @@ public:
 template <typename protocol_type>
 inline basic_ssl_client<protocol_type>::basic_ssl_client(asio::io_service& io_context,
 														 const protocol_endpoint& endpoint,
-														 const ssl_config& config)
-	: base_type(io_context, endpoint)
+														 const ssl_config& config,
+														 std::chrono::seconds heartbeat)
+	: base_type(io_context, endpoint, heartbeat)
 	, basic_ssl_entity(config)
 {
 }

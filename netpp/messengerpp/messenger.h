@@ -114,8 +114,6 @@ public:
 
 	bool empty() const;
 
-	void add_heartbeat(connection::id_t id, std::chrono::seconds duration);
-
 private:
 	messenger() = default;
 

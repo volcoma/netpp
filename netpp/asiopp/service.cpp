@@ -109,14 +109,14 @@ void deinit_services()
 	log() << this_func << " Successful.";
 }
 
-connector_ptr create_tcp_server(uint16_t port)
+connector_ptr create_tcp_server(uint16_t port, std::chrono::seconds heartbeat)
 {
 	using type = net::tcp::basic_server<asio::ip::tcp>;
 	auto& net_context = get_io_context();
 	type::protocol_endpoint endpoint(type::protocol::v6(), port);
 	try
 	{
-		return std::make_shared<type>(net_context, endpoint);
+		return std::make_shared<type>(net_context, endpoint, heartbeat);
 	}
 	catch(const std::exception& e)
 	{
@@ -125,7 +125,7 @@ connector_ptr create_tcp_server(uint16_t port)
 	return nullptr;
 }
 
-connector_ptr create_tcp_client(const std::string& host, uint16_t port)
+connector_ptr create_tcp_client(const std::string& host, uint16_t port, std::chrono::seconds heartbeat)
 {
 	using type = net::tcp::basic_client<asio::ip::tcp>;
 	auto& net_context = get_io_context();
@@ -141,7 +141,7 @@ connector_ptr create_tcp_client(const std::string& host, uint16_t port)
 	auto endpoint = res->endpoint();
 	try
 	{
-		return std::make_shared<type>(net_context, endpoint);
+		return std::make_shared<type>(net_context, endpoint, heartbeat);
 	}
 	catch(const std::exception& e)
 	{
@@ -150,7 +150,7 @@ connector_ptr create_tcp_client(const std::string& host, uint16_t port)
 	return nullptr;
 }
 
-connector_ptr create_tcp_ssl_server(uint16_t port, const ssl_config& config)
+connector_ptr create_tcp_ssl_server(uint16_t port, const ssl_config& config, std::chrono::seconds heartbeat)
 {
 	using type = net::tcp::basic_ssl_server<asio::ip::tcp>;
 
@@ -158,7 +158,7 @@ connector_ptr create_tcp_ssl_server(uint16_t port, const ssl_config& config)
 	type::protocol_endpoint endpoint(type::protocol::v6(), port);
 	try
 	{
-		return std::make_shared<type>(net_context, endpoint, config);
+		return std::make_shared<type>(net_context, endpoint, config, heartbeat);
 	}
 	catch(const std::exception& e)
 	{
@@ -167,7 +167,7 @@ connector_ptr create_tcp_ssl_server(uint16_t port, const ssl_config& config)
 	return nullptr;
 }
 
-connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const ssl_config& config)
+connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const ssl_config& config, std::chrono::seconds heartbeat)
 {
 	using type = net::tcp::basic_ssl_client<asio::ip::tcp>;
 
@@ -183,7 +183,7 @@ connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, cons
 	auto endpoint = res->endpoint();
 	try
 	{
-		return std::make_shared<type>(net_context, endpoint, config);
+		return std::make_shared<type>(net_context, endpoint, config, heartbeat);
 	}
 	catch(const std::exception& e)
 	{

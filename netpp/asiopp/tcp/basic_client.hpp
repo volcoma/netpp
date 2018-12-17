@@ -26,7 +26,8 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Constructor of client accepting a connect endpoint.
 	//-----------------------------------------------------------------------------
-	basic_client(asio::io_service& io_context, const protocol_endpoint& endpoint);
+	basic_client(asio::io_service& io_context, const protocol_endpoint& endpoint,
+				 std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 	//-----------------------------------------------------------------------------
 	/// Starts the client attempting to connect to an endpoint.
@@ -44,14 +45,17 @@ protected:
 	protocol_endpoint endpoint_;
 	asio::steady_timer reconnect_timer_;
 	asio::io_service& io_context_;
+	std::chrono::seconds heartbeat_;
 };
 
 template <typename protocol_type>
 inline basic_client<protocol_type>::basic_client(asio::io_service& io_context,
-												 const protocol_endpoint& endpoint)
+												 const protocol_endpoint& endpoint,
+												 std::chrono::seconds heartbeat)
 	: endpoint_(endpoint)
 	, reconnect_timer_(io_context)
 	, io_context_(io_context)
+	, heartbeat_(heartbeat)
 {
 	reconnect_timer_.expires_at(asio::steady_timer::time_point::max());
 }
@@ -78,7 +82,7 @@ template <typename protocol_type>
 inline void basic_client<protocol_type>::restart()
 {
 	using namespace std::chrono_literals;
-	reconnect_timer_.expires_from_now(1s);
+	reconnect_timer_.expires_after(1s);
 	reconnect_timer_.async_wait(std::bind(&basic_client::start, this->shared_from_this()));
 }
 
@@ -127,7 +131,8 @@ inline void basic_client<protocol_type>::on_handshake_complete(const std::shared
 	log() << "Handshake client::" << socket->lowest_layer().local_endpoint()
 		  << " -> server::" << socket->lowest_layer().remote_endpoint() << " completed.";
 
-	auto session = std::make_shared<tcp_connection<socket_type>>(socket, create_builder, io_context_);
+	auto session =
+		std::make_shared<tcp_connection<socket_type>>(socket, create_builder, io_context_, heartbeat_);
 
 	if(on_connection_ready)
 	{

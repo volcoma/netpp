@@ -33,22 +33,25 @@ void deinit_services();
 //-----------------------------------------------------------------------------
 /// Creates a tcp v4/v6 server
 //-----------------------------------------------------------------------------
-connector_ptr create_tcp_server(uint16_t port);
+connector_ptr create_tcp_server(uint16_t port, std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
 /// Creates a tcp v4/v6 client
 //-----------------------------------------------------------------------------
-connector_ptr create_tcp_client(const std::string& host, uint16_t port);
+connector_ptr create_tcp_client(const std::string& host, uint16_t port,
+								std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
 /// Creates a secure tcp v4/v6 server
 //-----------------------------------------------------------------------------
-connector_ptr create_tcp_ssl_server(uint16_t port, const ssl_config& config = {});
+connector_ptr create_tcp_ssl_server(uint16_t port, const ssl_config& config = {},
+									std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
 /// Creates a secure tcp v4/v6 client
 //-----------------------------------------------------------------------------
-connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const ssl_config& config = {});
+connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const ssl_config& config = {},
+									std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
 /// Creates a tcp local(domain socket) server.

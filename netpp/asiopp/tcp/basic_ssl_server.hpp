@@ -25,7 +25,7 @@ public:
 	/// Constructor of ssl server accepting a listen endpoint and certificates.
 	//-----------------------------------------------------------------------------
 	basic_ssl_server(asio::io_service& io_context, const protocol_endpoint& listen_endpoint,
-					 const ssl_config& config);
+					 const ssl_config& config, std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 	//-----------------------------------------------------------------------------
 	/// Starts the server attempting to accept incomming connections.
@@ -38,8 +38,9 @@ public:
 template <typename protocol_type>
 inline basic_ssl_server<protocol_type>::basic_ssl_server(asio::io_service& io_context,
 														 const protocol_endpoint& listen_endpoint,
-														 const ssl_config& config)
-	: base_type(io_context, listen_endpoint)
+														 const ssl_config& config,
+														 std::chrono::seconds heartbeat)
+	: base_type(io_context, listen_endpoint, heartbeat)
 	, basic_ssl_entity(config)
 {
 }

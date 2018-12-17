@@ -42,11 +42,6 @@ struct connection
 	//-----------------------------------------------------------------------------
 	virtual void stop(const error_code& ec) = 0;
 
-	//-----------------------------------------------------------------------------
-	/// Start a heartbeat cycle.
-	//-----------------------------------------------------------------------------
-	virtual void start_heartbeat(std::chrono::seconds duration) = 0;
-
 	/// container of subscribers for on_msg
 	std::vector<on_msg_t> on_msg;
 

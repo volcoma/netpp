@@ -174,25 +174,6 @@ bool messenger<T, OArchive, IArchive>::empty() const
 }
 
 template <typename T, typename OArchive, typename IArchive>
-void messenger<T, OArchive, IArchive>::add_heartbeat(connection::id_t id, std::chrono::seconds duration)
-{
-	std::unique_lock<std::mutex> lock(guard_);
-
-	auto conn_it = connections_.find(id);
-	if(conn_it == std::end(connections_))
-	{
-		return;
-	}
-	auto& conn_info = conn_it->second;
-
-	auto connection = conn_info.connection;
-
-	lock.unlock();
-
-	connection->start_heartbeat(duration);
-}
-
-template <typename T, typename OArchive, typename IArchive>
 void messenger<T, OArchive, IArchive>::remove_all()
 {
 	auto connections = [&]() {
