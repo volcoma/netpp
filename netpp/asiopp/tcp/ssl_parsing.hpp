@@ -27,29 +27,29 @@ inline std::string _asn1int(ASN1_INTEGER* bs)
     return ashex.str();
 }
 //----------------------------------------------------------------------
-inline std::string _asn1string(ASN1_STRING* d)
-{
-    std::string asn1_string;
-    if(ASN1_STRING_type(d) != V_ASN1_UTF8STRING)
-    {
-        unsigned char* utf8 = nullptr;
-        auto length = static_cast<size_t>(ASN1_STRING_to_UTF8(&utf8, d));
-        if(length > 0)
-        {
-            asn1_string = std::string(reinterpret_cast<char*>(utf8), length);
-            OPENSSL_free(utf8);
-        }
-    }
-    else
-    {
-        auto length = static_cast<size_t>(ASN1_STRING_length(d));
-        if(length > 0)
-        {
-            asn1_string = std::string(reinterpret_cast<const char*>(ASN1_STRING_get0_data(d)), length);
-        }
-    }
-    return asn1_string;
-}
+//inline std::string _asn1string(ASN1_STRING* d)
+//{
+//    std::string asn1_string;
+//    if(ASN1_STRING_type(d) != V_ASN1_UTF8STRING)
+//    {
+//        unsigned char* utf8 = nullptr;
+//        auto length = static_cast<size_t>(ASN1_STRING_to_UTF8(&utf8, d));
+//        if(length > 0)
+//        {
+//            asn1_string = std::string(reinterpret_cast<char*>(utf8), length);
+//            OPENSSL_free(utf8);
+//        }
+//    }
+//    else
+//    {
+//        auto length = static_cast<size_t>(ASN1_STRING_length(d));
+//        if(length > 0)
+//        {
+//            asn1_string = std::string(reinterpret_cast<const char*>(ASN1_STRING_get0_data(d)), length);
+//        }
+//    }
+//    return asn1_string;
+//}
 //----------------------------------------------------------------------
 inline std::string serial(X509* x509)
 {
@@ -57,50 +57,50 @@ inline std::string serial(X509* x509)
 }
 
 //----------------------------------------------------------------------
-inline std::string _subject_as_line(X509_NAME* subj_or_issuer)
-{
-    BIO* bio_out = BIO_new(BIO_s_mem());
-    X509_NAME_print(bio_out, subj_or_issuer, 0);
-    BUF_MEM* bio_buf = nullptr;
-    BIO_get_mem_ptr(bio_out, &bio_buf);
-    auto issuer = std::string(bio_buf->data, bio_buf->length);
-    BIO_free(bio_out);
-    return issuer;
-}
+//inline std::string _subject_as_line(X509_NAME* subj_or_issuer)
+//{
+//    BIO* bio_out = BIO_new(BIO_s_mem());
+//    X509_NAME_print(bio_out, subj_or_issuer, 0);
+//    BUF_MEM* bio_buf = nullptr;
+//    BIO_get_mem_ptr(bio_out, &bio_buf);
+//    auto issuer = std::string(bio_buf->data, bio_buf->length);
+//    BIO_free(bio_out);
+//    return issuer;
+//}
+////----------------------------------------------------------------------
+//inline std::map<std::string, std::string> _subject_as_map(X509_NAME* subj_or_issuer)
+//{
+//    std::map<std::string, std::string> m;
+//    for(int i = 0; i < X509_NAME_entry_count(subj_or_issuer); i++)
+//    {
+//        X509_NAME_ENTRY* e = X509_NAME_get_entry(subj_or_issuer, i);
+//        ASN1_STRING* d = X509_NAME_ENTRY_get_data(e);
+//        ASN1_OBJECT* o = X509_NAME_ENTRY_get_object(e);
+//        const char* key_name = OBJ_nid2sn(OBJ_obj2nid(o));
+//        m[key_name] = _asn1string(d);
+//    }
+//    return m;
+//}
 //----------------------------------------------------------------------
-inline std::map<std::string, std::string> _subject_as_map(X509_NAME* subj_or_issuer)
-{
-    std::map<std::string, std::string> m;
-    for(int i = 0; i < X509_NAME_entry_count(subj_or_issuer); i++)
-    {
-        X509_NAME_ENTRY* e = X509_NAME_get_entry(subj_or_issuer, i);
-        ASN1_STRING* d = X509_NAME_ENTRY_get_data(e);
-        ASN1_OBJECT* o = X509_NAME_ENTRY_get_object(e);
-        const char* key_name = OBJ_nid2sn(OBJ_obj2nid(o));
-        m[key_name] = _asn1string(d);
-    }
-    return m;
-}
-//----------------------------------------------------------------------
-inline std::string issuer_one_line(X509* x509)
-{
-    return _subject_as_line(X509_get_issuer_name(x509));
-}
-//----------------------------------------------------------------------
-inline std::string subject_one_line(X509* x509)
-{
-    return _subject_as_line(X509_get_subject_name(x509));
-}
-//----------------------------------------------------------------------
-inline std::map<std::string, std::string> subject(X509* x509)
-{
-    return _subject_as_map(X509_get_subject_name(x509));
-}
-//----------------------------------------------------------------------
-inline std::map<std::string, std::string> issuer(X509* x509)
-{
-    return _subject_as_map(X509_get_issuer_name(x509));
-}
+//inline std::string issuer_one_line(X509* x509)
+//{
+//    return _subject_as_line(X509_get_issuer_name(x509));
+//}
+////----------------------------------------------------------------------
+//inline std::string subject_one_line(X509* x509)
+//{
+//    return _subject_as_line(X509_get_subject_name(x509));
+//}
+////----------------------------------------------------------------------
+//inline std::map<std::string, std::string> subject(X509* x509)
+//{
+//    return _subject_as_map(X509_get_subject_name(x509));
+//}
+////----------------------------------------------------------------------
+//inline std::map<std::string, std::string> issuer(X509* x509)
+//{
+//    return _subject_as_map(X509_get_issuer_name(x509));
+//}
 
 //----------------------------------------------------------------------
 inline int public_key_size(X509* x509)
@@ -136,10 +136,10 @@ inline bool verify(bool preverified, asio::ssl::verify_context& ctx, ssl_certifi
     auto x509_cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
     cert.version = utils::certversion(x509_cert);
     cert.serial_number = utils::serial(x509_cert);
-    cert.issuer = utils::issuer_one_line(x509_cert);
-    cert.issuer_properties = utils::issuer(x509_cert);
-    cert.subject = utils::subject_one_line(x509_cert);
-    cert.subject_properties = utils::subject(x509_cert);
+//    cert.issuer = utils::issuer_one_line(x509_cert);
+//    cert.issuer_properties = utils::issuer(x509_cert);
+//    cert.subject = utils::subject_one_line(x509_cert);
+//    cert.subject_properties = utils::subject(x509_cert);
     cert.public_key_bit_size = utils::public_key_size(x509_cert);
 
     auto error = X509_STORE_CTX_get_error(ctx.native_handle());
