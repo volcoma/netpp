@@ -79,11 +79,11 @@ void create_service_threads(const service_config& config)
 
 void init_services(const service_config& init)
 {
-    if(init_count != 0)
-    {
-        return;
-    }
-    ++init_count;
+	if(init_count != 0)
+	{
+		return;
+	}
+	++init_count;
 
 	get_work();
 	create_service_threads(init);
@@ -93,11 +93,11 @@ void init_services(const service_config& init)
 
 void deinit_services()
 {
-    --init_count;
-    if(init_count != 0)
-    {
-        return;
-    }
+	--init_count;
+	if(init_count != 0)
+	{
+		return;
+	}
 
 	get_work().reset();
 	get_io_context().stop();
@@ -181,7 +181,8 @@ connector_ptr create_tcp_ssl_server(uint16_t port, const ssl_config& config, std
 	return nullptr;
 }
 
-connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const ssl_config& config, std::chrono::seconds heartbeat)
+connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const ssl_config& config,
+									std::chrono::seconds heartbeat)
 {
 	using type = net::tcp::basic_ssl_client<asio::ip::tcp>;
 
