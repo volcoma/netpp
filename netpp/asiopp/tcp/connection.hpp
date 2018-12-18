@@ -269,7 +269,7 @@ inline void tcp_connection<socket_type>::schedule_heartbeat()
 	std::lock_guard<std::mutex> lock(this->guard_);
 
 	using namespace std::chrono_literals;
-	heartbeat_reply_timer_.expires_after(2s);
+	heartbeat_reply_timer_.expires_after(1s);
 	heartbeat_reply_timer_.async_wait([this, sentinel = this->shared_from_this()](const error_code& ec) {
 		if(this->stopped())
 		{
