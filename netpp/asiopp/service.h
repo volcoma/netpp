@@ -1,21 +1,8 @@
 #pragma once
 #include <netpp/connector.h>
-
+#include "config.h"
 namespace net
 {
-struct service_config
-{
-	size_t workers = std::thread::hardware_concurrency();
-	std::function<void(std::thread&, const std::string&)> set_thread_name = nullptr;
-};
-struct ssl_config
-{
-	std::string cert_auth_file;
-	std::string cert_chain_file;
-	std::string private_key_file;
-	std::string dh_file;
-	std::string private_key_password;
-};
 
 //-----------------------------------------------------------------------------
 /// Init network services with specified config.
