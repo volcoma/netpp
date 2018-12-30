@@ -1,13 +1,15 @@
 #include <asiopp/service.h>
-#include <atomic>
+#include <messengerpp/messenger.h>
 #include <builderpp/msg_builder.h>
+
+#include <atomic>
 #include <chrono>
 #include <csignal>
 #include <functional>
 #include <iostream>
-#include <messengerpp/messenger.h>
 #include <sstream>
 #include <tuple>
+
 using namespace std::chrono_literals;
 
 namespace net
@@ -76,11 +78,6 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
         if(net)
         {
             net->send_msg(id, "echo");
-//            net::log() << "server sending request to " << id;
-//            auto f = net->send_request(id, "request");
-//            auto msg = f.get();
-//            net::log() << "server recieved response from " << id;
-//            net->send_msg(id, std::move(msg));
         }
     },
     [](net::connection::id_t id, net::error_code ec)
@@ -127,21 +124,14 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 		    {
 		 	   net->send_msg(id, std::move(msg));
 		    }
-		},
-        [](net::connection::id_t id, itc::promise<std::string> promise, std::string msg)
-        {
-            net::log() << "client " << id << " on_request: " << msg;
-            promise.set_value("echo");
-        });
+		});
 		// clang-format on
 	}
 	clients.clear();
 
 	auto end = std::chrono::steady_clock::now() + 15s;
-	while(!net->empty() && std::chrono::steady_clock::now() < end)
+	while(std::chrono::steady_clock::now() < end)
 	{
-		itc::this_thread::sleep_for(16ms);
-
 		static int i = 0;
 
 		if(i++ % 50 == 0)
@@ -324,10 +314,6 @@ int main(int argc, char* argv[])
 
 	auto info_logger = [](const std::string& msg) { std::cout << msg << std::endl; };
 
-	itc::init_data init;
-	init.log_info = info_logger;
-	init.log_error = info_logger;
-	itc::init(init);
 	net::set_logger(info_logger);
 	net::init_services();
 
@@ -372,6 +358,5 @@ int main(int argc, char* argv[])
 	}
 	net::deinit_messengers();
 	net::deinit_services();
-	itc::shutdown();
 	return 0;
 }
