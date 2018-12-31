@@ -55,9 +55,6 @@ auto get_network()
 
 int main()
 {
-    // Init inter-thread communication library(For more info on this visit https://github.com/volcoma/itc)
-    // and init net services.
-    itc::init();
     net::set_logger([](const std::string& msg) { std::cout << msg << std::endl; });
     net::init_services(std::thread::hardware_concurrency());
 
@@ -120,13 +117,14 @@ int main()
         net->send_msg(id, std::move(msg));
     });
 
-    while(!itc::this_thread::notified_for_exit())
+	// some main loop
+    while(true)
     {
-        //Sleep and process tasks
-        itc::this_thread::sleep_for(16ms);
+        std::this_thread::sleep_for(16ms);
     }
   
     net::deinit_messengers();
     net::deinit_services();
-    itc::shutdown();
+	
+	return 0;
 }
