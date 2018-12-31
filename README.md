@@ -58,6 +58,7 @@ int main()
     net::set_logger([](const std::string& msg) { std::cout << msg << std::endl; });
     net::init_services(std::thread::hardware_concurrency());
 
+    //std::string address = "127.0.0.1"; // localhost ipv4
     std::string address = "::1"; // localhost ipv6
     uint16_t port = 1111;
     // For example.
@@ -117,7 +118,7 @@ int main()
         net->send_msg(id, std::move(msg));
     });
 
-	// some main loop
+    // some main loop
     while(true)
     {
         std::this_thread::sleep_for(16ms);
@@ -126,5 +127,5 @@ int main()
     net::deinit_messengers();
     net::deinit_services();
 	
-	return 0;
+    return 0;
 }
