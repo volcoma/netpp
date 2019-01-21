@@ -35,7 +35,7 @@ struct ssl_certificate
 	int public_key_bit_size{0};
 };
 
-enum class ssl_method
+enum class ssl_method : uint8_t
 {
 	/// Generic SSL version 2.
 	sslv2,
@@ -101,6 +101,18 @@ enum class ssl_method
 	tls_server
 };
 
+enum ssl_handshake : uint8_t
+{
+	/// Deduced from the socket communication.
+	automatic,
+
+	/// Perform handshaking as a client.
+	client,
+
+	/// Perform handshaking as a server.
+	server
+};
+
 struct ssl_config
 {
 	std::string cert_auth_file;
@@ -111,6 +123,15 @@ struct ssl_config
 	std::function<bool(const ssl_certificate&)> verify_callback;
 	ssl_method method = ssl_method::tlsv12;
 	bool require_peer_cert = false;
+
+	// This can be used to specify a different behaviour
+	// e.g a tcp server can be treated as a ssl hanshake client
+	// or otherwise a tcp client can be a ssl hanshake server
+	// in a one-way authentication
+	//
+	// Automatic mode will have the standard behavior.
+	// Do not change if you don't know what you are doing.
+	ssl_handshake handshake_type = ssl_handshake::automatic;
 };
 
 } // namespace net

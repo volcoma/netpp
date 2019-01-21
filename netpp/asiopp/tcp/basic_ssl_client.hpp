@@ -57,39 +57,51 @@ inline void basic_ssl_client<protocol_type>::start()
 		}
 		auto ssl_socket = compatibility::make_ssl_socket(std::move(*socket), context_);
 
+		auto hanshake_type = [this]() {
+			switch(config_.handshake_type)
+			{
+				case ssl_handshake::server:
+					return asio::ssl::stream_base::server;
+				case ssl_handshake::client:
+					return asio::ssl::stream_base::client;
+
+				// this is a client unless specified otherwise
+				default:
+					return asio::ssl::stream_base::client;
+			}
+		}();
 		// Start the asynchronous handshake operation.
-		ssl_socket->async_handshake(asio::ssl::stream_base::client,
-									[weak_this, ssl_socket](const error_code& ec) mutable {
-										if(ec)
-										{
-											log() << "Handshake error: " << ec.message();
+		ssl_socket->async_handshake(hanshake_type, [weak_this, ssl_socket](const error_code& ec) mutable {
+			if(ec)
+			{
+				log() << "Handshake error: " << ec.message();
 
-											auto shared_this = weak_this.lock();
-											if(!shared_this)
-											{
-												return;
-											}
+				auto shared_this = weak_this.lock();
+				if(!shared_this)
+				{
+					return;
+				}
 
-											// We need to close the socket used in the previous connection
-											// attempt before starting a new one.
-											ssl_socket.reset();
+				// We need to close the socket used in the previous connection
+				// attempt before starting a new one.
+				ssl_socket.reset();
 
-											// Try again.
-											shared_this->restart();
-										}
+				// Try again.
+				shared_this->restart();
+			}
 
-										// Otherwise we have successfully established a connection.
-										else
-										{
-											auto shared_this = weak_this.lock();
-											if(!shared_this)
-											{
-												return;
-											}
+			// Otherwise we have successfully established a connection.
+			else
+			{
+				auto shared_this = weak_this.lock();
+				if(!shared_this)
+				{
+					return;
+				}
 
-											shared_this->on_handshake_complete(ssl_socket);
-										}
-									});
+				shared_this->on_handshake_complete(ssl_socket);
+			}
+		});
 	};
 
 	this->async_connect(socket, std::move(on_connection_established));

@@ -17,10 +17,12 @@ public:
 
 protected:
     asio::ssl::context context_;
+    ssl_config config_;
 };
 
 inline basic_ssl_entity::basic_ssl_entity(const ssl_config& config)
     : context_(utils::to_asio_method(config.method))
+    , config_(config)
 {
     context_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2 |
                          asio::ssl::context::single_dh_use);

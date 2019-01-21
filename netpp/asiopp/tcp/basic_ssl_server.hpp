@@ -60,9 +60,23 @@ inline void basic_ssl_server<protocol_type>::start()
 		}
 		auto ssl_socket = compatibility::make_ssl_socket(std::move(*socket), context_);
 
+		auto hanshake_type = [this]() {
+			switch(config_.handshake_type)
+			{
+				case ssl_handshake::server:
+					return asio::ssl::stream_base::server;
+				case ssl_handshake::client:
+					return asio::ssl::stream_base::client;
+
+				// this is a server unless specified otherwise
+				default:
+					return asio::ssl::stream_base::server;
+			}
+		}();
+
 		// Start the asynchronous handshake operation.
 		// clang-format off
-		ssl_socket->async_handshake(asio::ssl::stream_base::server,
+		ssl_socket->async_handshake(hanshake_type,
 		[weak_this, ssl_socket](const error_code& ec) mutable {
 			if(ec)
 			{

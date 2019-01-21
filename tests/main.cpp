@@ -205,19 +205,46 @@ int main(int argc, char* argv[])
 	conf.domain = "/tmp/test";
 	conf.port = 11111;
 
-	conf.ssl_client.cert_auth_file = CERT_DIR "ca.pem";
+#define AUTH 0
 
-	conf.ssl_client.cert_chain_file = CERT_DIR "server.pem";
-	conf.ssl_client.private_key_file = CERT_DIR "server.pem";
-	conf.ssl_client.dh_file = CERT_DIR "dh2048.pem";
+#if AUTH == 0
+	// One way authentication
+	conf.ssl_client.cert_auth_file = CERT_DIR "server-ca.pem";
 	conf.ssl_client.private_key_password = "test";
-
-	conf.ssl_server.cert_auth_file = CERT_DIR "ca.pem";
+	//conf.ssl_client.dh_file = CERT_DIR "client-dh2048.pem";
 
 	conf.ssl_server.cert_chain_file = CERT_DIR "server.pem";
 	conf.ssl_server.private_key_file = CERT_DIR "server.pem";
-	conf.ssl_server.dh_file = CERT_DIR "dh2048.pem";
 	conf.ssl_server.private_key_password = "test";
+	//conf.ssl_server.dh_file = CERT_DIR "server-dh2048.pem";
+#elif AUTH == 1
+	// One way authentication (inverted)
+	conf.ssl_server.cert_auth_file = CERT_DIR "server-ca.pem";
+    conf.ssl_server.private_key_password = "test";
+	//conf.ssl_server.dh_file = CERT_DIR "server-dh2048.pem";
+	// treat this entity  as a handshake client
+	conf.ssl_server.handshake_type = net::ssl_handshake::client;
+
+	conf.ssl_client.cert_chain_file = CERT_DIR "client-server.pem";
+	conf.ssl_client.private_key_file = CERT_DIR "client-server.pem";
+    conf.ssl_client.private_key_password = "test";
+	//conf.ssl_client.dh_file = CERT_DIR "client-dh2048.pem";
+	// treat this entity as a handshake server
+	conf.ssl_client.handshake_type = net::ssl_handshake::server;
+#else
+	// Two way authentication
+	conf.ssl_client.cert_auth_file = CERT_DIR "server-ca.pem";
+	conf.ssl_client.cert_chain_file = CERT_DIR "client.pem";
+	conf.ssl_client.private_key_file = CERT_DIR "client.pem";
+	conf.ssl_client.private_key_password = "test";
+	//conf.ssl_client.dh_file = CERT_DIR "client-dh2048.pem";
+
+	conf.ssl_server.cert_auth_file = CERT_DIR "client-ca.pem";
+	conf.ssl_server.cert_chain_file = CERT_DIR "server.pem";
+	conf.ssl_server.private_key_file = CERT_DIR "server.pem";
+	conf.ssl_server.private_key_password = "test";
+	//conf.ssl_server.dh_file = CERT_DIR "server-dh2048.pem";
+#endif
 
 	// clang-format off
 
