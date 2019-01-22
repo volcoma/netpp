@@ -91,7 +91,7 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
     [](net::connection::id_t id, std::string msg)
     {
         net::log() << "server client " << id << " on_msg: " << msg;
-        //itc::this_thread::sleep_for(16ms);
+        std::this_thread::sleep_for(16ms);
         auto net = net::get_network<std::string>();
         if(net)
         {
@@ -118,7 +118,7 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 		[](net::connection::id_t id, std::string msg)
         {
 		    net::log() << "client " << id << " on_msg: " << msg;
-		    //itc::this_thread::sleep_for(16ms);
+		    std::this_thread::sleep_for(16ms);
             auto net = net::get_network<std::string>();
 		    if(net)
 		    {
@@ -139,10 +139,10 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 			net->send_msg(server_con, "from_main");
 		}
 
-		if(i % 100 == 0)
-		{
-			net->disconnect(server_con);
-		}
+//		if(i % 100 == 0)
+//		{
+//			net->disconnect(server_con);
+//		}
 	}
 	server_con = 0;
 	net->remove_all();
@@ -223,14 +223,16 @@ int main(int argc, char* argv[])
     conf.ssl_server.private_key_password = "test";
 	//conf.ssl_server.dh_file = CERT_DIR "server-dh2048.pem";
 	// treat this entity  as a handshake client
+    conf.ssl_server.method = net::ssl_method::tlsv12_client;
 	conf.ssl_server.handshake_type = net::ssl_handshake::client;
 
-	conf.ssl_client.cert_chain_file = CERT_DIR "client-server.pem";
-	conf.ssl_client.private_key_file = CERT_DIR "client-server.pem";
+	conf.ssl_client.cert_chain_file = CERT_DIR "client.pem";
+	conf.ssl_client.private_key_file = CERT_DIR "client.pem";
     conf.ssl_client.private_key_password = "test";
 	//conf.ssl_client.dh_file = CERT_DIR "client-dh2048.pem";
 	// treat this entity as a handshake server
 	conf.ssl_client.handshake_type = net::ssl_handshake::server;
+    conf.ssl_client.method = net::ssl_method::tlsv12_server;
 #else
 	// Two way authentication
 	conf.ssl_client.cert_auth_file = CERT_DIR "server-ca.pem";
@@ -251,54 +253,54 @@ int main(int argc, char* argv[])
     using creator = std::function<net::connector_ptr(config)>;
     std::vector<std::tuple<std::string, creator, creator>> creators =
     {
-        std::make_tuple
-        (
-            "UNICAST",
-            [](const config& conf)
-            {
-                return net::create_udp_unicast_client(conf.address, conf.port);
-            },
-            [](const config& conf)
-            {
-                return net::create_udp_unicast_server(conf.address, conf.port);
-            }
-        ),
-        std::make_tuple
-        (
-            "MULTICAST",
-            [](const config& conf)
-            {
-                return net::create_udp_multicast_client(conf.multicast_address, conf.port);
-            },
-            [](const config& conf)
-            {
-                return net::create_udp_multicast_server(conf.multicast_address, conf.port);
-            }
-        ),
-        std::make_tuple
-        (
-            "BROADCAST",
-            [](const config& conf)
-            {
-                return net::create_udp_broadcast_client(conf.port);
-            },
-            [](const config& conf)
-            {
-                return net::create_udp_broadcast_server(conf.port);
-            }
-        ),
-        std::make_tuple
-        (
-            "TCP",
-            [](const config& conf)
-            {
-                return net::create_tcp_client(conf.address, conf.port);
-            },
-            [](const config& conf)
-            {
-                return net::create_tcp_server(conf.port);
-            }
-        ),
+//        std::make_tuple
+//        (
+//            "UNICAST",
+//            [](const config& conf)
+//            {
+//                return net::create_udp_unicast_client(conf.address, conf.port);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_udp_unicast_server(conf.address, conf.port);
+//            }
+//        ),
+//        std::make_tuple
+//        (
+//            "MULTICAST",
+//            [](const config& conf)
+//            {
+//                return net::create_udp_multicast_client(conf.multicast_address, conf.port);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_udp_multicast_server(conf.multicast_address, conf.port);
+//            }
+//        ),
+//        std::make_tuple
+//        (
+//            "BROADCAST",
+//            [](const config& conf)
+//            {
+//                return net::create_udp_broadcast_client(conf.port);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_udp_broadcast_server(conf.port);
+//            }
+//        ),
+//        std::make_tuple
+//        (
+//            "TCP",
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_client(conf.address, conf.port);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_server(conf.port);
+//            }
+//        ),
         std::make_tuple
         (
             "TCP SSL",
@@ -312,30 +314,30 @@ int main(int argc, char* argv[])
                 return net::create_tcp_ssl_server(conf.port, conf.ssl_server);
             }
         ),
-        std::make_tuple
-        (
-            "TCP LOCAL",
-            [](const config& conf)
-            {
-                return net::create_tcp_local_client(conf.domain);
-            },
-            [](const config& conf)
-            {
-                return net::create_tcp_local_server(conf.domain);
-            }
-        ),
-        std::make_tuple
-        (
-            "TCP SSL LOCAL",
-            [](const config& conf)
-            {
-                return net::create_tcp_ssl_local_client(conf.domain, conf.ssl_client);
-            },
-            [](const config& conf)
-            {
-                return net::create_tcp_ssl_local_server(conf.domain, conf.ssl_server);
-            }
-        )
+//        std::make_tuple
+//        (
+//            "TCP LOCAL",
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_local_client(conf.domain);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_local_server(conf.domain);
+//            }
+//        ),
+//        std::make_tuple
+//        (
+//            "TCP SSL LOCAL",
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_ssl_local_client(conf.domain, conf.ssl_client);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_ssl_local_server(conf.domain, conf.ssl_server);
+//            }
+//        )
     };
 	// clang-format on
 
