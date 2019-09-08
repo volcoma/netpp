@@ -20,6 +20,8 @@ log::~log()
 	auto& func = get_logger();
 	if(func)
 	{
+        static std::mutex mutex{};
+        std::lock_guard<std::mutex> lock(mutex);
 		func(str.str());
 	}
 }

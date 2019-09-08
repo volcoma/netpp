@@ -83,5 +83,5 @@ void basic_reciever::restart()
 	reconnect_timer_.expires_from_now(1s);
 	reconnect_timer_.async_wait(std::bind(&basic_reciever::start, shared_from_this()));
 }
-}
+} // namespace udp
 } // namespace net

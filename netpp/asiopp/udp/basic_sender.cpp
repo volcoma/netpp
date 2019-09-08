@@ -39,7 +39,7 @@ void basic_sender::start()
 	//	}
 	if(socket->set_option(asio::ip::multicast::hops(5), ec))
 	{
-		log() << "[Error] datagram_socket::multicast::enable_loopback : " << ec.message();
+		log() << "[Error] datagram_socket::multicast::hops : " << ec.message();
 	}
 
 	auto session = std::make_shared<udp_connection>(std::move(socket), create_builder, io_context_);
@@ -68,5 +68,5 @@ void basic_sender::restart()
 	reconnect_timer_.expires_from_now(1s);
 	reconnect_timer_.async_wait(std::bind(&basic_sender::start, shared_from_this()));
 }
-}
+} // namespace udp
 } // namespace net

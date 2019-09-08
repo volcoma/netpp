@@ -49,7 +49,7 @@ public:
 	/// Callback to be called whenever data was read from the socket
 	/// or an error occured.
 	//-----------------------------------------------------------------------------
-	void handle_read(const error_code& ec, std::size_t n) override;
+	bool handle_read(const error_code& ec, std::size_t size) override;
 
 	//-----------------------------------------------------------------------------
 	/// Starts the async write operation awaiting for data
@@ -57,18 +57,15 @@ public:
 	//-----------------------------------------------------------------------------
 	void start_write() override;
 
-	//-----------------------------------------------------------------------------
-	/// Callback to be called whenever data was written to the socket
-	/// or an error occured.
-	//-----------------------------------------------------------------------------
-	void handle_write(const error_code& ec) override;
-
 private:
 	/// Endpoint used for sending
 	udp::endpoint endpoint_;
 
-	/// Endpoint filled when receiving
-	udp::endpoint remote_endpoint_;
+    /// Remote endpoint filled when recieving
+   	udp::endpoint remote_endpoint_;
+
+   	/// Input buffer used when recieving
+	input_buffer input_buffer_{};
 
 	/// a flag indicating if this connection can read
 	bool can_read_ = true;
@@ -76,5 +73,5 @@ private:
 	/// a flag indicating if this connection can write
 	bool can_write_ = true;
 };
-}
+} // namespace udp
 } // namespace net

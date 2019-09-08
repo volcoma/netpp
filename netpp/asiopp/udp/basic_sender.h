@@ -34,5 +34,5 @@ protected:
 	asio::io_service& io_context_;
 	asio::steady_timer reconnect_timer_;
 };
-}
+} // namespace udp
 } // namespace net
