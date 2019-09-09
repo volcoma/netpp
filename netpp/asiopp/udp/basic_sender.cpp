@@ -45,21 +45,21 @@ void basic_sender::start()
 	auto session = std::make_shared<udp_connection>(std::move(socket), create_builder, io_context_);
 	session->set_endpoint(endpoint_, false, true);
 
+    auto weak_this = weak_ptr(shared_from_this());
+    session->on_disconnect.emplace_back([weak_this](connection::id_t, const error_code&) {
+        auto shared_this = weak_this.lock();
+        if(!shared_this)
+        {
+            return;
+        }
+        // Try again.
+        shared_this->restart();
+    });
+
 	if(on_connection_ready)
 	{
 		on_connection_ready(session);
 	}
-
-	auto weak_this = weak_ptr(shared_from_this());
-	session->on_disconnect.emplace_back([weak_this](connection::id_t, const error_code&) {
-		auto shared_this = weak_this.lock();
-		if(!shared_this)
-		{
-			return;
-		}
-		// Try again.
-		shared_this->restart();
-	});
 }
 
 void basic_sender::restart()

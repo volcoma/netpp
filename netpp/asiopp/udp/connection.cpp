@@ -18,15 +18,25 @@ void udp_connection::start_read()
 	{
 		return;
 	}
-	// Start an asynchronous operation to read a certain number of bytes.
-	// Here std::bind + shared_from_this is used because of the composite op async_*
-	// We want it to operate on valid data until the handler is called.
-	socket_->async_receive_from(
-		asio::buffer(input_buffer_.buffer.data() + input_buffer_.offset,
-		input_buffer_.buffer.size() - input_buffer_.offset),
-		remote_endpoint_,
-		strand_.wrap(std::bind(&base_type::handle_read, this->shared_from_this(), std::placeholders::_1,
-							   std::placeholders::_2)));
+
+    auto& service = socket_->get_io_service();
+    service.post(strand_.wrap([this, shared_this = shared_from_this()]() {
+
+        if(stopped())
+        {
+            return;
+        }
+
+        // Start an asynchronous operation to read a certain number of bytes.
+        // Here std::bind + shared_from_this is used because of the composite op async_*
+        // We want it to operate on valid data until the handler is called.
+        socket_->async_receive_from(
+            asio::buffer(input_buffer_.buffer.data() + input_buffer_.offset,
+            input_buffer_.buffer.size() - input_buffer_.offset),
+            remote_endpoint_,
+            strand_.wrap(std::bind(&base_type::handle_read, shared_this, std::placeholders::_1,
+                                   std::placeholders::_2)));
+    }));
 }
 bool udp_connection::handle_read(const error_code& ec, std::size_t size)
 {
@@ -72,12 +82,21 @@ void udp_connection::start_write()
 		return;
 	}
 
-	// Here std::bind + shared_from_this is used because of the composite op async_*
-	// We want it to operate on valid data until the handler is called.
-	// Start an asynchronous operation to send all messages.
-	socket_->async_send_to(this->get_output_buffers(), endpoint_,
-						   strand_.wrap(std::bind(&base_type::handle_write, this->shared_from_this(),
-												  std::placeholders::_1, std::placeholders::_2)));
+
+    auto& service = socket_->get_io_service();
+    service.post(strand_.wrap([this, shared_this = shared_from_this()]() {
+        if(stopped())
+        {
+            return;
+        }
+        // Here std::bind + shared_from_this is used because of the composite op async_*
+        // We want it to operate on valid data until the handler is called.
+        // Start an asynchronous operation to send all messages.
+        socket_->async_send_to(this->get_output_buffers(), this->endpoint_,
+                               strand_.wrap(std::bind(&base_type::handle_write, shared_this,
+                                                      std::placeholders::_1, std::placeholders::_2)));
+    }));
+
 }
 
 } // namespace udp
