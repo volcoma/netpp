@@ -134,11 +134,6 @@ inline void basic_client<protocol_type>::on_handshake_complete(const std::shared
 	auto session =
 		std::make_shared<tcp_connection<socket_type>>(socket, create_builder, io_context_, heartbeat_);
 
-	if(on_connection_ready)
-	{
-		on_connection_ready(session);
-	}
-
 	auto weak_this = weak_ptr(this->shared_from_this());
 	session->on_disconnect.emplace_back([weak_this](connection::id_t, const error_code&) {
 		auto shared_this = weak_this.lock();
@@ -149,6 +144,11 @@ inline void basic_client<protocol_type>::on_handshake_complete(const std::shared
 		// Try again.
 		shared_this->start();
 	});
+
+    if(on_connection_ready)
+    {
+        on_connection_ready(session);
+    }
 }
 }
 } // namespace net

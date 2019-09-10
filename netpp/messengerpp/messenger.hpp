@@ -152,7 +152,7 @@ void messenger<T, OArchive, IArchive>::on_new_connection(connection_ptr& connect
 	// instead of expensive lookup into the connections container.
 	conn_info.sentinel = std::make_shared<connection::id_t>(connection->id);
 
-	connection->on_disconnect.emplace_back([weak_this, info](connection::id_t id, const error_code& ec) {
+	connection->on_disconnect.emplace_front([weak_this, info](connection::id_t id, const error_code& ec) {
 		auto shared_this = weak_this.lock();
 		if(!shared_this)
 		{
@@ -163,7 +163,7 @@ void messenger<T, OArchive, IArchive>::on_new_connection(connection_ptr& connect
 	});
 
 	auto sentinel = std::weak_ptr<void>(conn_info.sentinel);
-	connection->on_msg.emplace_back(
+	connection->on_msg.emplace_front(
 		[weak_this, info, sentinel](connection::id_t id, byte_buffer msg, data_channel channel) {
 			auto shared_this = weak_this.lock();
 			if(!shared_this || sentinel.expired())

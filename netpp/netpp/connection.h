@@ -9,7 +9,7 @@
 #include <mutex>
 #include <string>
 #include <utility>
-#include <vector>
+#include <deque>
 
 namespace net
 {
@@ -43,10 +43,10 @@ struct connection
 	virtual void stop(const error_code& ec) = 0;
 
 	/// container of subscribers for on_msg
-	std::vector<on_msg_t> on_msg;
+	std::deque<on_msg_t> on_msg;
 
 	/// container of subscribers for on_disconnect
-	std::vector<on_disconnect_t> on_disconnect;
+	std::deque<on_disconnect_t> on_disconnect;
 
 	/// unique msg_builder for this connection
 	msg_builder_ptr builder;
