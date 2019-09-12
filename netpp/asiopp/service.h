@@ -68,44 +68,32 @@ connector_ptr create_tcp_ssl_local_client(const std::string& file, const ssl_con
 /// UDP ///
 //-------//
 //-----------------------------------------------------------------------------
-/// Creates a udp unicast server(sender).
+/// Creates a udp unicast server.
 /// one - one communication via udp.
 //-----------------------------------------------------------------------------
-connector_ptr create_udp_unicast_server(const std::string& unicast_address, uint16_t port);
+connector_ptr create_udp_unicast_server(uint16_t port, std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
-/// Creates a udp unicast client(reciever).
+/// Creates a udp unicast client.
 /// one - one communication via udp.
 //-----------------------------------------------------------------------------
-connector_ptr create_udp_unicast_client(const std::string& unicast_address, uint16_t port);
+connector_ptr create_udp_unicast_client(const std::string& unicast_address, uint16_t port,
+                                        std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
-/// Creates a udp multicast server(sender).
+/// Creates a udp multicast (connector).
 /// one/many senders - one/many recievers communication via udp.
 //-----------------------------------------------------------------------------
-connector_ptr create_udp_multicast_server(const std::string& multicast_address, uint16_t port);
+connector_ptr create_udp_multicaster(const std::string& multicast_address, uint16_t port);
 
 //-----------------------------------------------------------------------------
-/// Creates a udp multicast client(reciever).
-/// one/many senders - one/many recievers communication via udp.
-//-----------------------------------------------------------------------------
-connector_ptr create_udp_multicast_client(const std::string& multicast_address, uint16_t port);
-
-//-----------------------------------------------------------------------------
-/// Creates a udp broacast client(reciever).
+/// Creates a udp broacast connector.
 /// one sender - one/many recievers communication via udp.
 /// IMPORTANT! -> There are no broadcast addresses in IPv6, their function being
 /// superseded by multicast addresses.
 /// Consider Using multicast.
 //-----------------------------------------------------------------------------
-connector_ptr create_udp_broadcast_server(uint16_t port);
-
-//-----------------------------------------------------------------------------
-/// Creates a udp broacast client(reciever).
-/// one sender - one/many recievers communication via udp.
-/// Consider Using multicast.
-//-----------------------------------------------------------------------------
-connector_ptr create_udp_broadcast_client(uint16_t port);
+connector_ptr create_udp_broadcaster(const std::string& host_address, const std::string& net_mask, uint16_t port);
 
 namespace version_flags
 {

@@ -67,7 +67,6 @@ void setup_connector(net::connector_ptr& connector)
 void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& clients)
 {
 	auto net = net::get_network<std::string>();
-
 	// clang-format off
     setup_connector(server);
 	net->add_connector(server,
@@ -75,11 +74,11 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
     {
         net::log() << "server connected " << id;
         server_con = id;
-        auto net = net::get_network<std::string>();
-        if(net)
-        {
-            net->send_msg(id, "echo");
-        }
+//        auto net = net::get_network<std::string>();
+//        if(net)
+//        {
+//            net->send_msg(id, "echo");
+//        }
     },
     [](net::connection::id_t id, net::error_code ec)
     {
@@ -108,9 +107,14 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 		setup_connector(client);
 		// clang-format off
 		net->add_connector(client,
-		[](net::connection::id_t id)
+        [&](net::connection::id_t id)
         {
 		    net::log() << "client " << id << " connected";
+            auto net = net::get_network<std::string>();
+            if(net)
+            {
+                net->send_msg(id, std::to_string(id));
+            }
 		},
 		[](net::connection::id_t id, const net::error_code& ec)
         {
@@ -131,20 +135,19 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 	clients.clear();
 
 
-	auto end = std::chrono::steady_clock::now() + 115s;
+    auto end = std::chrono::steady_clock::now() + 115s;
+
 	while(std::chrono::steady_clock::now() < end)
 	{
-		static int i = 0;
+        static int i = 1;
 
-		if(i++ % 50 == 0)
-		{
-			net->send_msg(server_con, "from_main");
-		}
+        //if(i++ % 50 == 0)
 
-		if(i % 100 == 0)
-		{
-			net->disconnect(server_con);
-		}
+        if(i++ % 5 == 0)
+        {
+            net->disconnect(server_con);
+        }
+        std::this_thread::sleep_for(1s);
 	}
 	server_con = 0;
 	net->remove_all();
@@ -189,6 +192,8 @@ int main(int argc, char* argv[])
 	{
 		std::string address{};
 		std::string multicast_address{};
+        std::string host_addr_ipv4{};
+        std::string net_mask_ipv4{};
 		std::string domain{};
 		std::string cert_auth_file{};
 		std::string cert_chain_file{};
@@ -203,9 +208,11 @@ int main(int argc, char* argv[])
 
 	config conf;
 	conf.address = "::1";
-	conf.multicast_address = "ff31::8000:1234";
-	conf.domain = "/tmp/test";
-	conf.port = 22111;
+    conf.host_addr_ipv4 = "192.168.46.1";
+    conf.net_mask_ipv4 = "255.255.254.0";
+    conf.multicast_address = "ff31::8000:1234";
+    conf.domain = "/tmp/test";
+	conf.port = 11111;
 
 #define AUTH 0
 
@@ -252,103 +259,103 @@ int main(int argc, char* argv[])
 
 	// clang-format off
 
-    net::log() << net::host_name();
-
     using creator = std::function<net::connector_ptr(config)>;
     std::vector<std::tuple<std::string, creator, creator>> creators =
     {
-        std::make_tuple
-        (
-            "UNICAST",
-            [](const config& conf)
-            {
-                return net::create_udp_unicast_client(conf.address, conf.port);
-            },
-            [](const config& conf)
-            {
-                return net::create_udp_unicast_server(conf.address, conf.port);
-            }
-        ),
-        std::make_tuple
-        (
-            "MULTICAST",
-            [](const config& conf)
-            {
-                return net::create_udp_multicast_client(conf.multicast_address, conf.port);
-            },
-            [](const config& conf)
-            {
-                return net::create_udp_multicast_server(conf.multicast_address, conf.port);
-            }
-        ),
+//        std::make_tuple
+//        (
+//            "UNICAST",
+//            [](const config& conf)
+//            {
+//                return net::create_udp_unicast_client(conf.address, conf.port);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_udp_unicast_server(conf.port);
+//            }
+//        ),
+//        std::make_tuple
+//        (
+//            "MULTICAST",
+//            [](const config& conf)
+//            {
+//                return net::create_udp_multicaster(conf.multicast_address, conf.port);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_udp_multicaster(conf.multicast_address, conf.port);
+//            }
+//        ),
         std::make_tuple
         (
             "BROADCAST",
             [](const config& conf)
             {
-                return net::create_udp_broadcast_client(conf.port);
+                return net::create_udp_broadcaster(conf.host_addr_ipv4, conf.net_mask_ipv4, conf.port);
             },
             [](const config& conf)
             {
-                return net::create_udp_broadcast_server(conf.port);
+                return net::create_udp_unicast_server(conf.port);
             }
         ),
-        std::make_tuple
-        (
-            "TCP",
-            [](const config& conf)
-            {
-                return net::create_tcp_client(conf.address, conf.port);
-            },
-            [](const config& conf)
-            {
-                return net::create_tcp_server(conf.port);
-            }
-        ),
-        std::make_tuple
-        (
-            "TCP SSL",
-            [](const config& conf)
-            {
-                return net::create_tcp_ssl_client(conf.address, conf.port, conf.ssl_client);
-            },
-            [](const config& conf)
-            {
-                net::ssl_config ssl_config;
-                return net::create_tcp_ssl_server(conf.port, conf.ssl_server);
-            }
-        ),
-        std::make_tuple
-        (
-            "TCP LOCAL",
-            [](const config& conf)
-            {
-                return net::create_tcp_local_client(conf.domain);
-            },
-            [](const config& conf)
-            {
-                return net::create_tcp_local_server(conf.domain);
-            }
-        ),
-        std::make_tuple
-        (
-            "TCP SSL LOCAL",
-            [](const config& conf)
-            {
-                return net::create_tcp_ssl_local_client(conf.domain, conf.ssl_client);
-            },
-            [](const config& conf)
-            {
-                return net::create_tcp_ssl_local_server(conf.domain, conf.ssl_server);
-            }
-        )
+//        std::make_tuple
+//        (
+//            "TCP",
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_client(conf.address, conf.port);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_server(conf.port);
+//            }
+//        ),
+//        std::make_tuple
+//        (
+//            "TCP SSL",
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_ssl_client(conf.address, conf.port, conf.ssl_client);
+//            },
+//            [](const config& conf)
+//            {
+//                net::ssl_config ssl_config;
+//                return net::create_tcp_ssl_server(conf.port, conf.ssl_server);
+//            }
+//        ),
+//        std::make_tuple
+//        (
+//            "TCP LOCAL",
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_local_client(conf.domain);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_local_server(conf.domain);
+//            }
+//        ),
+//        std::make_tuple
+//        (
+//            "TCP SSL LOCAL",
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_ssl_local_client(conf.domain, conf.ssl_client);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_tcp_ssl_local_server(conf.domain, conf.ssl_server);
+//            }
+//        )
     };
 	// clang-format on
 
 	auto info_logger = [](const std::string& msg) { std::cout << msg << std::endl; };
 
 	net::set_logger(info_logger);
-	net::init_services();
+    net::service_config cfg;
+    cfg.workers = 2;
+    net::init_services(cfg);
 
 	try
 	{

@@ -70,7 +70,7 @@ inline void tcp_connection<socket_type>::start_read()
 	// Start an asynchronous operation to read a certain number of bytes.
 	asio::async_read(*this->socket_, asio::buffer(work_buffer.data() + offset, operation.bytes),
 					 asio::transfer_exactly(operation.bytes),
-					 this->strand_.wrap(std::bind(&base_type::handle_read, this->shared_from_this(),
+                     this->strand_->wrap(std::bind(&base_type::handle_read, this->shared_from_this(),
 												  std::placeholders::_1, std::placeholders::_2)));
 }
 
@@ -93,7 +93,7 @@ inline void tcp_connection<socket_type>::start_write()
 	// We want it to operate on valid data until the handler is called.
 	// Start an asynchronous operation to send all messages.
 	asio::async_write(*this->socket_, this->get_output_buffers(),
-					  this->strand_.wrap(std::bind(&base_type::handle_write, this->shared_from_this(),
+                      this->strand_->wrap(std::bind(&base_type::handle_write, this->shared_from_this(),
 												   std::placeholders::_1, std::placeholders::_2)));
 }
 
