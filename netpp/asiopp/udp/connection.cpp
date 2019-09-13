@@ -30,37 +30,36 @@ void udp_connection::start_read()
 															std::placeholders::_1, std::placeholders::_2)));
 	}));
 }
-std::size_t udp_connection::handle_read(const error_code& ec, std::size_t size)
+int64_t udp_connection::handle_read(const error_code& ec, std::size_t size)
 {
 	auto unprocessed_size = input_buffer_.offset + size;
 	auto processed = handle_read(ec, input_buffer_.buffer.data(), unprocessed_size);
-	auto unprocessed = unprocessed_size - processed;
+    if (processed < 0)
+    {
+        return processed;
+    }
 
-	if(processed != 0)
-	{
-        if(processed > unprocessed)
-        {
-            std::memcpy(input_buffer_.buffer.data(), input_buffer_.buffer.data() + processed, unprocessed);
-        }
-        else
-        {
-            byte_buffer tmp(unprocessed);
-            std::memcpy(tmp.data(), input_buffer_.buffer.data() + processed, unprocessed);
-            std::memcpy(input_buffer_.buffer.data(), tmp.data(), tmp.size());
-        }
-	}
+    auto unprocessed = unprocessed_size - static_cast<std::size_t> (processed);
+
+    if(static_cast<std::size_t>(processed) > unprocessed)
+    {
+        std::memcpy(input_buffer_.buffer.data(), input_buffer_.buffer.data() + processed, unprocessed);
+    }
+    else
+    {
+        byte_buffer tmp(unprocessed);
+        std::memcpy(tmp.data(), input_buffer_.buffer.data() + processed, unprocessed);
+        std::memcpy(input_buffer_.buffer.data(), tmp.data(), tmp.size());
+    }
 
 	input_buffer_.offset = unprocessed;
 
-	if(processed != 0)
-	{
-		start_read();
-	}
+    start_read();
 
 	return processed;
 }
 
-std::size_t udp_connection::handle_read(const error_code& ec, const uint8_t* buf, std::size_t size)
+int64_t udp_connection::handle_read(const error_code& ec, const uint8_t* buf, std::size_t size)
 {
 	size_t processed = 0;
 	while(processed < size)
@@ -81,15 +80,17 @@ std::size_t udp_connection::handle_read(const error_code& ec, const uint8_t* buf
 		work_buffer.resize(offset + operation.bytes);
 		std::memcpy(work_buffer.data() + offset, buf + processed, operation.bytes);
 
-		if(!base_type::handle_read(ec, operation.bytes))
-		{
-			break;
-		}
+        auto result = base_type::handle_read(ec, operation.bytes);
 
-		processed += operation.bytes;
+        if(result < 0)
+        {
+            return result;
+        }
+
+        processed += static_cast<size_t>(result);
 	}
 
-	return processed;
+    return static_cast<int64_t>(processed);
 }
 
 void udp_connection::start_write()

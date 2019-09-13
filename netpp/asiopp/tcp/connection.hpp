@@ -42,7 +42,7 @@ public:
 	/// Callback to be called whenever data was read from the socket
 	/// or an error occured.
 	//-----------------------------------------------------------------------------
-	std::size_t handle_read(const error_code& ec, std::size_t size) override;
+    int64_t handle_read(const error_code& ec, std::size_t size) override;
 
 	//-----------------------------------------------------------------------------
 	/// Starts the async write operation awaiting for data
@@ -75,13 +75,13 @@ inline void tcp_connection<socket_type>::start_read()
 }
 
 template <typename socket_type>
-inline std::size_t tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
+inline int64_t tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
 {
 	auto processed = base_type::handle_read(ec, size);
 
-	if(!processed)
+    if(processed < 0)
 	{
-		return 0;
+        return processed;
 	}
 
 	start_read();

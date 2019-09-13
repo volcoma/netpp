@@ -94,7 +94,7 @@ public:
 	/// Callback to be called whenever data was read from the socket
 	/// or an error occured.
 	//-----------------------------------------------------------------------------
-	virtual std::size_t handle_read(const error_code& ec, std::size_t size);
+    virtual int64_t handle_read(const error_code& ec, std::size_t size);
 
 	//-----------------------------------------------------------------------------
 	/// Starts the async write operation awaiting for data
@@ -106,7 +106,7 @@ public:
 	/// Callback to be called whenever data was written to the socket
 	/// or an error occured.
 	//-----------------------------------------------------------------------------
-	virtual std::size_t handle_write(const error_code& ec, std::size_t size);
+    virtual int64_t handle_write(const error_code& ec, std::size_t size);
 
 protected:
 	std::vector<asio::const_buffer> get_output_buffers() const;
@@ -312,17 +312,17 @@ inline void asio_connection<socket_type>::await_output()
 }
 
 template <typename socket_type>
-inline std::size_t asio_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
+inline int64_t asio_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
 {
 	if(this->stopped())
 	{
-		return 0;
+        return -1;
 	}
 
 	if(ec)
 	{
 		this->stop(ec);
-		return 0;
+        return -1;
 	}
 
 	// NOTE! Thread safety:
@@ -338,12 +338,12 @@ inline std::size_t asio_connection<socket_type>::handle_read(const error_code& e
 	{
 		log() << e.what();
 		this->stop(make_error_code(errc::data_corruption));
-		return 0;
+        return -1;
 	}
 	catch(...)
 	{
 		this->stop(make_error_code(errc::data_corruption));
-		return 0;
+        return -1;
 	}
 
 	if(is_ready)
@@ -366,21 +366,21 @@ inline std::size_t asio_connection<socket_type>::handle_read(const error_code& e
 		}
 	}
 
-	return size;
+    return static_cast<int64_t> (size);
 }
 
 template <typename socket_type>
-inline std::size_t asio_connection<socket_type>::handle_write(const error_code& ec, std::size_t size)
+inline int64_t asio_connection<socket_type>::handle_write(const error_code& ec, std::size_t size)
 {
 	if(this->stopped())
 	{
-		return 0;
+        return -1;
 	}
 
 	if(ec)
 	{
 		this->stop(ec);
-		return 0;
+        return -1;
 	}
 
 	auto left_to_processs = size;
@@ -405,7 +405,7 @@ inline std::size_t asio_connection<socket_type>::handle_write(const error_code& 
 		}
 	}
 	this->await_output();
-	return size;
+    return static_cast<int64_t> (size);
 }
 
 template <typename socket_type>

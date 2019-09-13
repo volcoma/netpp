@@ -267,11 +267,11 @@ int main(int argc, char* argv[])
             "UNICAST",
             [](const config& conf)
             {
-                return net::create_udp_unicast_client(conf.address, conf.port);
+                return net::create_udp_unicast_client(conf.address, conf.port, std::chrono::seconds(2));
             },
             [](const config& conf)
             {
-                return net::create_udp_unicast_server(conf.port);
+                return net::create_udp_unicast_server(conf.port, std::chrono::seconds(2));
             }
         ),
 //        std::make_tuple

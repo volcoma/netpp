@@ -47,9 +47,6 @@ public:
 
 private:
 	void stop_socket() override;
-
-	/// Endpoint used for sending
-	udp::endpoint endpoint_;
 };
 }
 } // namespace net

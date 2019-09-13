@@ -49,8 +49,8 @@ public:
 	/// Callback to be called whenever data was read from the socket
 	/// or an error occured.
 	//-----------------------------------------------------------------------------
-	std::size_t handle_read(const error_code& ec, std::size_t size) override;
-	std::size_t handle_read(const error_code& ec, const uint8_t* buf, std::size_t size);
+    int64_t handle_read(const error_code& ec, std::size_t size) override;
+    int64_t handle_read(const error_code& ec, const uint8_t* buf, std::size_t size);
 
 	//-----------------------------------------------------------------------------
 	/// Starts the async write operation awaiting for data

@@ -70,23 +70,24 @@ void basic_server::on_recv_data(const std::shared_ptr<udp::socket>& socket, std:
 
 	auto unprocessed_size = input_buffer_.offset + size;
 	auto processed = session->handle_read({}, input_buffer_.buffer.data(), unprocessed_size);
-	auto unprocessed = unprocessed_size - processed;
+    if (processed < 0)
+    {
+        return;
+    }
+    auto unprocessed = unprocessed_size - static_cast<std::size_t> (processed);
 
-	if(processed != 0)
-	{
-        if(processed > unprocessed)
-        {
-            std::memcpy(input_buffer_.buffer.data(), input_buffer_.buffer.data() + processed, unprocessed);
-        }
-        else
-        {
-            byte_buffer tmp(unprocessed);
-            std::memcpy(tmp.data(), input_buffer_.buffer.data() + processed, unprocessed);
-            std::memcpy(input_buffer_.buffer.data(), tmp.data(), tmp.size());
-        }
-	}
+    if(static_cast<std::size_t>(processed) > unprocessed)
+    {
+        std::memcpy(input_buffer_.buffer.data(), input_buffer_.buffer.data() + processed, unprocessed);
+    }
+    else
+    {
+        byte_buffer tmp(unprocessed);
+        std::memcpy(tmp.data(), input_buffer_.buffer.data() + processed, unprocessed);
+        std::memcpy(input_buffer_.buffer.data(), tmp.data(), tmp.size());
+    }
 
-	input_buffer_.offset = unprocessed;
+    input_buffer_.offset = unprocessed;
 
     async_recieve(socket);
 }
@@ -123,7 +124,13 @@ basic_server::on_handshake_complete(const std::shared_ptr<udp::socket>& socket)
 				}
 
 				shared_this->io_context_.post(shared_this->strand_->wrap(
-					[shared_this, remote_endpoint]() { shared_this->connections_.erase(remote_endpoint); }));
+                    [shared_this, remote_endpoint]()
+                {
+                    auto sz = shared_this->connections_.size();
+                    shared_this->connections_.erase(remote_endpoint);
+                    auto sz_after = shared_this->connections_.size();
+                    net::log() << "sz before : " << sz << ", sz after : " << sz_after;
+                }));
 
 			});
 
