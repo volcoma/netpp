@@ -295,49 +295,49 @@ connector_ptr create_tcp_ssl_local_client(const std::string& file, const ssl_con
 	return nullptr;
 }
 
-
 connector_ptr create_udp_unicast_server(uint16_t port, std::chrono::seconds heartbeat)
 {
-    auto& net_context = get_io_context();
+	auto& net_context = get_io_context();
 
-    asio::ip::udp::endpoint endpoint(asio::ip::address_v6::any(), port);
-    try
-    {
-        return std::make_shared<net::udp::basic_server>(net_context, endpoint, heartbeat);
-    }
-    catch(const std::exception& e)
-    {
-        log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
-    }
-    return nullptr;
+	asio::ip::udp::endpoint endpoint(asio::ip::address_v6::any(), port);
+	try
+	{
+		return std::make_shared<net::udp::basic_server>(net_context, endpoint, heartbeat);
+	}
+	catch(const std::exception& e)
+	{
+		log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
+	}
+	return nullptr;
 }
 
-connector_ptr create_udp_unicast_client(const std::string& unicast_address, uint16_t port, std::chrono::seconds heartbeat)
+connector_ptr create_udp_unicast_client(const std::string& unicast_address, uint16_t port,
+										std::chrono::seconds heartbeat)
 {
-    auto& net_context = get_io_context();
-    error_code ec;
-    auto address = asio::ip::address::from_string(unicast_address, ec);
-    if(ec)
-    {
-        log() << this_func << " Failed : " << ec.message();
-        return nullptr;
-    }
-    if(address.is_multicast())
-    {
-        log() << this_func << " Failed. You provided a multicast address.";
-        return nullptr;
-    }
+	auto& net_context = get_io_context();
+	error_code ec;
+	auto address = asio::ip::address::from_string(unicast_address, ec);
+	if(ec)
+	{
+		log() << this_func << " Failed : " << ec.message();
+		return nullptr;
+	}
+	if(address.is_multicast())
+	{
+		log() << this_func << " Failed. You provided a multicast address.";
+		return nullptr;
+	}
 
-    asio::ip::udp::endpoint endpoint(address, port);
-    try
-    {
-        return std::make_shared<net::udp::basic_client>(net_context, endpoint, heartbeat);
-    }
-    catch(const std::exception& e)
-    {
-        log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
-    }
-    return nullptr;
+	asio::ip::udp::endpoint endpoint(address, port);
+	try
+	{
+		return std::make_shared<net::udp::basic_client>(net_context, endpoint, heartbeat);
+	}
+	catch(const std::exception& e)
+	{
+		log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
+	}
+	return nullptr;
 }
 
 connector_ptr create_udp_multicaster(const std::string& multicast_address, uint16_t port)
@@ -358,7 +358,7 @@ connector_ptr create_udp_multicaster(const std::string& multicast_address, uint1
 	asio::ip::udp::endpoint endpoint(address, port);
 	try
 	{
-        return std::make_shared<net::udp::basic_client>(net_context, endpoint);
+		return std::make_shared<net::udp::basic_client>(net_context, endpoint);
 	}
 	catch(const std::exception& e)
 	{
@@ -367,37 +367,38 @@ connector_ptr create_udp_multicaster(const std::string& multicast_address, uint1
 	return nullptr;
 }
 
-connector_ptr create_udp_broadcaster(const std::string& host_address, const std::string& net_mask, uint16_t port)
+connector_ptr create_udp_broadcaster(const std::string& host_address, const std::string& net_mask,
+									 uint16_t port)
 {
-    auto& net_context = get_io_context();
-    error_code ec {};
+	auto& net_context = get_io_context();
+	error_code ec{};
 
-    auto host_addr = asio::ip::address_v4::from_string(host_address, ec);
-    if(ec)
-    {
-        log() << this_func << " Failed : " << ec.message();
-        return nullptr;
-    }
+	auto host_addr = asio::ip::address_v4::from_string(host_address, ec);
+	if(ec)
+	{
+		log() << this_func << " Failed : " << ec.message();
+		return nullptr;
+	}
 
-    auto net_mask_addr = asio::ip::address_v4::from_string(net_mask, ec);
-    if(ec)
-    {
-        log() << this_func << " Failed : " << ec.message();
-        return nullptr;
-    }
+	auto net_mask_addr = asio::ip::address_v4::from_string(net_mask, ec);
+	if(ec)
+	{
+		log() << this_func << " Failed : " << ec.message();
+		return nullptr;
+	}
 
-    auto address = asio::ip::address_v4::broadcast(host_addr, net_mask_addr);
+	auto address = asio::ip::address_v4::broadcast(host_addr, net_mask_addr);
 
-    asio::ip::udp::endpoint endpoint(address, port);
-    try
-    {
-        return std::make_shared<net::udp::basic_client>(net_context, endpoint);
-    }
-    catch(const std::exception& e)
-    {
-        log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
-    }
-    return nullptr;
+	asio::ip::udp::endpoint endpoint(address, port);
+	try
+	{
+		return std::make_shared<net::udp::basic_client>(net_context, endpoint);
+	}
+	catch(const std::exception& e)
+	{
+		log() << this_func << " Failed for endpoint - " << endpoint << " : " << e.what();
+	}
+	return nullptr;
 }
 
 std::string host_name()
@@ -429,7 +430,7 @@ std::vector<std::string> host_addresses(uint32_t v_flags, uint32_t t_flags)
 		}
 	});
 
-    return result;
+	return result;
 }
 
 } // namespace net

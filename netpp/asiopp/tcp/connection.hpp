@@ -42,7 +42,7 @@ public:
 	/// Callback to be called whenever data was read from the socket
 	/// or an error occured.
 	//-----------------------------------------------------------------------------
-	bool handle_read(const error_code& ec, std::size_t size) override;
+	std::size_t handle_read(const error_code& ec, std::size_t size) override;
 
 	//-----------------------------------------------------------------------------
 	/// Starts the async write operation awaiting for data
@@ -70,20 +70,22 @@ inline void tcp_connection<socket_type>::start_read()
 	// Start an asynchronous operation to read a certain number of bytes.
 	asio::async_read(*this->socket_, asio::buffer(work_buffer.data() + offset, operation.bytes),
 					 asio::transfer_exactly(operation.bytes),
-                     this->strand_->wrap(std::bind(&base_type::handle_read, this->shared_from_this(),
-												  std::placeholders::_1, std::placeholders::_2)));
+					 this->strand_->wrap(std::bind(&base_type::handle_read, this->shared_from_this(),
+												   std::placeholders::_1, std::placeholders::_2)));
 }
 
 template <typename socket_type>
-inline bool tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
+inline std::size_t tcp_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
 {
-	if(!base_type::handle_read(ec, size))
+	auto processed = base_type::handle_read(ec, size);
+
+	if(!processed)
 	{
-		return false;
+		return 0;
 	}
 
 	start_read();
-	return true;
+	return processed;
 }
 
 template <typename socket_type>
@@ -93,8 +95,8 @@ inline void tcp_connection<socket_type>::start_write()
 	// We want it to operate on valid data until the handler is called.
 	// Start an asynchronous operation to send all messages.
 	asio::async_write(*this->socket_, this->get_output_buffers(),
-                      this->strand_->wrap(std::bind(&base_type::handle_write, this->shared_from_this(),
-												   std::placeholders::_1, std::placeholders::_2)));
+					  this->strand_->wrap(std::bind(&base_type::handle_write, this->shared_from_this(),
+													std::placeholders::_1, std::placeholders::_2)));
 }
 
 } // namespace tcp

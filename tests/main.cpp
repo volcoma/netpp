@@ -262,18 +262,18 @@ int main(int argc, char* argv[])
     using creator = std::function<net::connector_ptr(config)>;
     std::vector<std::tuple<std::string, creator, creator>> creators =
     {
-//        std::make_tuple
-//        (
-//            "UNICAST",
-//            [](const config& conf)
-//            {
-//                return net::create_udp_unicast_client(conf.address, conf.port);
-//            },
-//            [](const config& conf)
-//            {
-//                return net::create_udp_unicast_server(conf.port);
-//            }
-//        ),
+        std::make_tuple
+        (
+            "UNICAST",
+            [](const config& conf)
+            {
+                return net::create_udp_unicast_client(conf.address, conf.port);
+            },
+            [](const config& conf)
+            {
+                return net::create_udp_unicast_server(conf.port);
+            }
+        ),
 //        std::make_tuple
 //        (
 //            "MULTICAST",
@@ -286,18 +286,18 @@ int main(int argc, char* argv[])
 //                return net::create_udp_multicaster(conf.multicast_address, conf.port);
 //            }
 //        ),
-        std::make_tuple
-        (
-            "BROADCAST",
-            [](const config& conf)
-            {
-                return net::create_udp_broadcaster(conf.host_addr_ipv4, conf.net_mask_ipv4, conf.port);
-            },
-            [](const config& conf)
-            {
-                return net::create_udp_unicast_server(conf.port);
-            }
-        ),
+//        std::make_tuple
+//        (
+//            "BROADCAST",
+//            [](const config& conf)
+//            {
+//                return net::create_udp_broadcaster(conf.host_addr_ipv4, conf.net_mask_ipv4, conf.port);
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_udp_unicast_server(conf.port);
+//            }
+//        ),
 //        std::make_tuple
 //        (
 //            "TCP",

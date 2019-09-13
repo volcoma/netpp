@@ -71,14 +71,15 @@ connector_ptr create_tcp_ssl_local_client(const std::string& file, const ssl_con
 /// Creates a udp unicast server.
 /// one - one communication via udp.
 //-----------------------------------------------------------------------------
-connector_ptr create_udp_unicast_server(uint16_t port, std::chrono::seconds heartbeat = std::chrono::seconds{0});
+connector_ptr create_udp_unicast_server(uint16_t port,
+										std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
 /// Creates a udp unicast client.
 /// one - one communication via udp.
 //-----------------------------------------------------------------------------
 connector_ptr create_udp_unicast_client(const std::string& unicast_address, uint16_t port,
-                                        std::chrono::seconds heartbeat = std::chrono::seconds{0});
+										std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
 /// Creates a udp multicast (connector).
@@ -93,7 +94,8 @@ connector_ptr create_udp_multicaster(const std::string& multicast_address, uint1
 /// superseded by multicast addresses.
 /// Consider Using multicast.
 //-----------------------------------------------------------------------------
-connector_ptr create_udp_broadcaster(const std::string& host_address, const std::string& net_mask, uint16_t port);
+connector_ptr create_udp_broadcaster(const std::string& host_address, const std::string& net_mask,
+									 uint16_t port);
 
 namespace version_flags
 {

@@ -1,5 +1,5 @@
 #pragma once
-#include "../common/connection.hpp"
+#include "connection.h"
 
 #include <asio/basic_stream_socket.hpp>
 #include <asio/buffer.hpp>
@@ -21,13 +21,13 @@ namespace udp
 
 using asio::ip::udp;
 
-class udp_server_connection : public asio_connection<udp::socket>
+class udp_server_connection : public udp_connection
 {
 public:
 	//-----------------------------------------------------------------------------
 	/// Aliases.
 	//-----------------------------------------------------------------------------
-	using base_type = asio_connection<udp::socket>;
+	using base_type = udp_connection;
 
 	//-----------------------------------------------------------------------------
 	/// Inherited constructors
@@ -37,27 +37,17 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Sets and endpoint and read/write rights
 	//-----------------------------------------------------------------------------
-    void set_options(udp::endpoint endpoint, std::shared_ptr<asio::io_service::strand> strand);
+	void set_strand(std::shared_ptr<asio::io_service::strand> strand);
 
-    void stop_socket() override;
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
 	/// Starts the async read operation awaiting for data
 	/// to be read from the socket.
 	//-----------------------------------------------------------------------------
 	void start_read() override;
 
-	//-----------------------------------------------------------------------------
-	/// Callback to be called whenever data was read from the socket
-	/// or an error occured.
-	//-----------------------------------------------------------------------------
-    size_t process_read(const uint8_t* buf, std::size_t n);
-	//-----------------------------------------------------------------------------
-	/// Starts the async write operation awaiting for data
-	/// to be written to the socket.
-	//-----------------------------------------------------------------------------
-	void start_write() override;
-
 private:
+	void stop_socket() override;
+
 	/// Endpoint used for sending
 	udp::endpoint endpoint_;
 };

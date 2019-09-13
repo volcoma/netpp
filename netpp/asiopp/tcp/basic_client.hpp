@@ -145,10 +145,10 @@ inline void basic_client<protocol_type>::on_handshake_complete(const std::shared
 		shared_this->start();
 	});
 
-    if(on_connection_ready)
-    {
-        on_connection_ready(session);
-    }
+	if(on_connection_ready)
+	{
+		on_connection_ready(session);
+	}
 }
 }
 } // namespace net

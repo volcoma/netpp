@@ -54,15 +54,14 @@ namespace net
 // successfully sent, the output actor again waits for the output queue to
 // become non-empty.
 
-template<typename buffer_t>
+template <typename buffer_t>
 struct stateful_buffer
 {
-    buffer_t buffer{};
-    std::size_t offset{};
+	buffer_t buffer{};
+	std::size_t offset{};
 };
 using output_buffer = stateful_buffer<byte_buffer>;
 using input_buffer = stateful_buffer<std::array<uint8_t, std::numeric_limits<uint16_t>::max()>>;
-
 
 template <typename socket_type>
 class asio_connection : public connection, public std::enable_shared_from_this<asio_connection<socket_type>>
@@ -83,7 +82,7 @@ public:
 	/// Can be called internally from a failed async operation
 	//-----------------------------------------------------------------------------
 	void stop(const error_code& ec) override;
-    virtual void stop_socket();
+	virtual void stop_socket();
 
 	//-----------------------------------------------------------------------------
 	/// Starts the async read operation awaiting for data
@@ -95,7 +94,7 @@ public:
 	/// Callback to be called whenever data was read from the socket
 	/// or an error occured.
 	//-----------------------------------------------------------------------------
-	virtual bool handle_read(const error_code& ec, std::size_t size);
+	virtual std::size_t handle_read(const error_code& ec, std::size_t size);
 
 	//-----------------------------------------------------------------------------
 	/// Starts the async write operation awaiting for data
@@ -107,10 +106,9 @@ public:
 	/// Callback to be called whenever data was written to the socket
 	/// or an error occured.
 	//-----------------------------------------------------------------------------
-	virtual bool handle_write(const error_code& ec, std::size_t size);
+	virtual std::size_t handle_write(const error_code& ec, std::size_t size);
 
 protected:
-
 	std::vector<asio::const_buffer> get_output_buffers() const;
 	//-----------------------------------------------------------------------------
 	/// Checks whether the connection is stopped i.e the stop method
@@ -162,7 +160,7 @@ protected:
 	std::deque<output_buffer> output_queue_;
 
 	/// a strand for async socket callback synchronization
-    std::shared_ptr<asio::io_service::strand> strand_;
+	std::shared_ptr<asio::io_service::strand> strand_;
 
 	/// the socket this connection is using.
 	std::shared_ptr<socket_type> socket_;
@@ -191,7 +189,7 @@ inline asio_connection<socket_type>::asio_connection(std::shared_ptr<socket_type
 													 const msg_builder::creator& builder_creator,
 													 asio::io_service& context,
 													 std::chrono::seconds heartbeat)
-    : strand_(std::make_shared<asio::io_service::strand>(context))
+	: strand_(std::make_shared<asio::io_service::strand>(context))
 	, socket_(std::move(socket))
 	, non_empty_output_queue_(context)
 	, heartbeat_check_interval_(heartbeat)
@@ -199,8 +197,8 @@ inline asio_connection<socket_type>::asio_connection(std::shared_ptr<socket_type
 	, heartbeat_reply_timer_(context)
 
 {
-    error_code ec;
-    socket_->lowest_layer().non_blocking(true, ec);
+	error_code ec;
+	socket_->lowest_layer().non_blocking(true, ec);
 
 	// The non_empty_output_queue_ steady_timer is set to the maximum time
 	// point whenever the output queue is empty. This ensures that the output
@@ -229,11 +227,11 @@ template <typename socket_type>
 inline void asio_connection<socket_type>::stop(const error_code& ec)
 {
 	{
-        std::lock_guard<std::mutex> lock(guard_);
-        non_empty_output_queue_.cancel();
-        heartbeat_check_timer_.cancel();
-        heartbeat_reply_timer_.cancel();
-        stop_socket();
+		std::lock_guard<std::mutex> lock(guard_);
+		non_empty_output_queue_.cancel();
+		heartbeat_check_timer_.cancel();
+		heartbeat_reply_timer_.cancel();
+		stop_socket();
 	}
 
 	if(connected_.exchange(false))
@@ -248,15 +246,15 @@ inline void asio_connection<socket_type>::stop(const error_code& ec)
 template <typename socket_type>
 inline void asio_connection<socket_type>::stop_socket()
 {
-    auto& service = socket_->get_io_service();
-    service.post(strand_->wrap([socket = socket_]() {
-        if(socket->lowest_layer().is_open())
-        {
-            error_code ec;
-            socket->lowest_layer().shutdown(asio::socket_base::shutdown_both, ec);
-            socket->lowest_layer().close(ec);
-        }
-    }));
+	auto& service = socket_->get_io_service();
+	service.post(strand_->wrap([socket = socket_]() {
+		if(socket->lowest_layer().is_open())
+		{
+			error_code ec;
+			socket->lowest_layer().shutdown(asio::socket_base::shutdown_both, ec);
+			socket->lowest_layer().close(ec);
+		}
+	}));
 }
 
 template <typename socket_type>
@@ -301,7 +299,7 @@ inline void asio_connection<socket_type>::await_output()
 			// message is added, the timer will be modified and the actor will wake.
 			non_empty_output_queue_.expires_at(asio::steady_timer::time_point::max());
 			non_empty_output_queue_.async_wait(
-                strand_->wrap(std::bind(&asio_connection::await_output, this->shared_from_this())));
+				strand_->wrap(std::bind(&asio_connection::await_output, this->shared_from_this())));
 		}
 
 		return empty;
@@ -314,17 +312,17 @@ inline void asio_connection<socket_type>::await_output()
 }
 
 template <typename socket_type>
-inline bool asio_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
+inline std::size_t asio_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
 {
 	if(this->stopped())
 	{
-		return false;
+		return 0;
 	}
 
 	if(ec)
 	{
 		this->stop(ec);
-		return false;
+		return 0;
 	}
 
 	// NOTE! Thread safety:
@@ -340,12 +338,12 @@ inline bool asio_connection<socket_type>::handle_read(const error_code& ec, std:
 	{
 		log() << e.what();
 		this->stop(make_error_code(errc::data_corruption));
-		return false;
+		return 0;
 	}
 	catch(...)
 	{
 		this->stop(make_error_code(errc::data_corruption));
-		return false;
+		return 0;
 	}
 
 	if(is_ready)
@@ -368,45 +366,46 @@ inline bool asio_connection<socket_type>::handle_read(const error_code& ec, std:
 		}
 	}
 
-	return true;
+	return size;
 }
 
 template <typename socket_type>
-inline bool asio_connection<socket_type>::handle_write(const error_code& ec, std::size_t size)
+inline std::size_t asio_connection<socket_type>::handle_write(const error_code& ec, std::size_t size)
 {
 	if(this->stopped())
 	{
-		return false;
+		return 0;
 	}
 
 	if(ec)
 	{
 		this->stop(ec);
-		return false;
+		return 0;
 	}
 
+	auto left_to_processs = size;
 	{
 		std::lock_guard<std::mutex> lock(this->guard_);
-		while(size > 0 && !this->output_queue_.empty())
+		while(left_to_processs > 0 && !this->output_queue_.empty())
 		{
 			auto& msg = this->output_queue_.front();
 
 			auto buffer_sz = msg.buffer.size();
 			auto left = buffer_sz - msg.offset;
-			if(size < left)
+			if(left_to_processs < left)
 			{
-				msg.offset += size;
-				size = 0;
+				msg.offset += left_to_processs;
+				left_to_processs = 0;
 			}
 			else
 			{
-				size -= left;
+				left_to_processs -= left;
 				this->output_queue_.pop_front();
 			}
 		}
 	}
 	this->await_output();
-	return true;
+	return size;
 }
 
 template <typename socket_type>
@@ -417,8 +416,7 @@ inline std::vector<asio::const_buffer> asio_connection<socket_type>::get_output_
 	buffers.reserve(this->output_queue_.size());
 	for(const auto& msg : this->output_queue_)
 	{
-		buffers.emplace_back(
-			asio::buffer(msg.buffer.data() + msg.offset, msg.buffer.size() - msg.offset));
+		buffers.emplace_back(asio::buffer(msg.buffer.data() + msg.offset, msg.buffer.size() - msg.offset));
 	}
 	return buffers;
 }
