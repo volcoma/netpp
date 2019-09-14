@@ -85,16 +85,16 @@ void basic_client::start()
 			log() << "[Error] datagram_socket::reuse_address : " << ec.message();
 		}
 
-        if(socket->bind(socket_endpoint, ec))
-        {
-            log() << "[Error] datagram_socket::bind : " << ec.message();
-        }
+		if(socket->bind(socket_endpoint, ec))
+		{
+			log() << "[Error] datagram_socket::bind : " << ec.message();
+		}
 
-        if(socket->set_option(asio::socket_base::broadcast(true), ec))
-        {
-            log() << "[Error] datagram_socket::broadcast : " << ec.message();
-        }
-    }
+		if(socket->set_option(asio::socket_base::broadcast(true), ec))
+		{
+			log() << "[Error] datagram_socket::broadcast : " << ec.message();
+		}
+	}
 
 	auto session =
 		std::make_shared<udp_connection>(std::move(socket), create_builder, io_context_, heartbeat_);

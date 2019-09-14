@@ -61,7 +61,7 @@ void basic_server::start()
 
 void basic_server::on_recv_data(const std::shared_ptr<udp::socket>& socket, std::size_t size)
 {
-	auto session = on_handshake_complete(socket);
+	auto session = map_to_connection(socket, remote_endpoint_);
 
 	if(!session)
 	{
@@ -69,41 +69,42 @@ void basic_server::on_recv_data(const std::shared_ptr<udp::socket>& socket, std:
 	}
 
 	auto unprocessed_size = input_buffer_.offset + size;
-	auto processed = session->handle_read({}, input_buffer_.buffer.data(), unprocessed_size);
-    if (processed < 0)
-    {
-        return;
-    }
-    auto unprocessed = unprocessed_size - static_cast<std::size_t> (processed);
+	auto result = session->handle_read({}, input_buffer_.buffer.data(), unprocessed_size);
+	if(result < 0)
+	{
+		return;
+	}
+	auto processed = static_cast<std::size_t>(result);
+	auto unprocessed = unprocessed_size - processed;
 
-    if(static_cast<std::size_t>(processed) > unprocessed)
-    {
-        std::memcpy(input_buffer_.buffer.data(), input_buffer_.buffer.data() + processed, unprocessed);
-    }
-    else
-    {
-        byte_buffer tmp(unprocessed);
-        std::memcpy(tmp.data(), input_buffer_.buffer.data() + processed, unprocessed);
-        std::memcpy(input_buffer_.buffer.data(), tmp.data(), tmp.size());
-    }
+	if(processed > unprocessed)
+	{
+		std::memcpy(input_buffer_.buffer.data(), input_buffer_.buffer.data() + processed, unprocessed);
+	}
+	else
+	{
+		byte_buffer range(unprocessed);
+		std::memcpy(range.data(), input_buffer_.buffer.data() + processed, unprocessed);
+		std::memcpy(input_buffer_.buffer.data(), range.data(), range.size());
+	}
 
-    input_buffer_.offset = unprocessed;
+	input_buffer_.offset = unprocessed;
 
-    async_recieve(socket);
+	async_recieve(socket);
 }
 
-std::shared_ptr<udp_server_connection>
-basic_server::on_handshake_complete(const std::shared_ptr<udp::socket>& socket)
+auto basic_server::map_to_connection(const std::shared_ptr<udp::socket>& socket,
+									 udp::endpoint remote_endpoint) -> srv_connection_ptr
 {
-	auto it = connections_.find(remote_endpoint_);
+	auto it = connections_.find(remote_endpoint);
 	if(it == std::end(connections_))
 	{
 		auto session =
 			std::make_shared<udp_server_connection>(socket, create_builder, io_context_, heartbeat_);
-		session->set_endpoint(remote_endpoint_);
+		session->set_endpoint(remote_endpoint);
 		session->set_strand(strand_);
 
-		auto result = connections_.emplace(remote_endpoint_, session);
+		auto result = connections_.emplace(remote_endpoint, session);
 		if(!result.second)
 		{
 			return {};
@@ -116,21 +117,19 @@ basic_server::on_handshake_complete(const std::shared_ptr<udp::socket>& socket)
 
 		auto weak_this = weak_ptr(shared_from_this());
 		session->on_disconnect.emplace_back(
-			[weak_this, remote_endpoint = remote_endpoint_](connection::id_t, const error_code&) {
+			[weak_this, remote_endpoint](connection::id_t, const error_code&) {
 				auto shared_this = weak_this.lock();
 				if(!shared_this)
 				{
 					return;
 				}
 
-				shared_this->io_context_.post(shared_this->strand_->wrap(
-                    [shared_this, remote_endpoint]()
-                {
-                    auto sz = shared_this->connections_.size();
-                    shared_this->connections_.erase(remote_endpoint);
-                    auto sz_after = shared_this->connections_.size();
-                    net::log() << "sz before : " << sz << ", sz after : " << sz_after;
-                }));
+				shared_this->io_context_.post(shared_this->strand_->wrap([shared_this, remote_endpoint]() {
+					auto sz = shared_this->connections_.size();
+					shared_this->connections_.erase(remote_endpoint);
+					auto sz_after = shared_this->connections_.size();
+					net::log() << "sz before : " << sz << ", sz after : " << sz_after;
+				}));
 
 			});
 

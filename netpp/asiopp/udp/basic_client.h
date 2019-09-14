@@ -15,22 +15,25 @@ using asio::ip::udp;
 class basic_client : public connector, public std::enable_shared_from_this<basic_client>
 {
 public:
-	using weak_ptr = std::weak_ptr<basic_client>;
-	~basic_client() override = default;
 	//-----------------------------------------------------------------------------
-	/// Constructor of client accepting a receive endpoint.
+	/// Aliases.
+	//-----------------------------------------------------------------------------
+	using weak_ptr = std::weak_ptr<basic_client>;
+
+	//-----------------------------------------------------------------------------
+	/// Constructor of client accepting an endpoint.
 	//-----------------------------------------------------------------------------
 	basic_client(asio::io_service& io_context, udp::endpoint endpoint,
 				 std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 	//-----------------------------------------------------------------------------
-	/// Starts the receiver creating an udp socket and setting proper options
+	/// Starts the client creating an udp socket and setting proper options
 	/// depending on the type of the endpoint
 	//-----------------------------------------------------------------------------
 	void start() override;
+	void restart();
 
 protected:
-	void restart();
 	udp::endpoint endpoint_;
 	asio::io_service& io_context_;
 	asio::steady_timer reconnect_timer_;

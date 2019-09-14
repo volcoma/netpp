@@ -82,7 +82,6 @@ public:
 	/// Can be called internally from a failed async operation
 	//-----------------------------------------------------------------------------
 	void stop(const error_code& ec) override;
-	virtual void stop_socket();
 
 	//-----------------------------------------------------------------------------
 	/// Starts the async read operation awaiting for data
@@ -94,7 +93,7 @@ public:
 	/// Callback to be called whenever data was read from the socket
 	/// or an error occured.
 	//-----------------------------------------------------------------------------
-    virtual int64_t handle_read(const error_code& ec, std::size_t size);
+	virtual auto handle_read(const error_code& ec, std::size_t size) -> int64_t;
 
 	//-----------------------------------------------------------------------------
 	/// Starts the async write operation awaiting for data
@@ -106,10 +105,20 @@ public:
 	/// Callback to be called whenever data was written to the socket
 	/// or an error occured.
 	//-----------------------------------------------------------------------------
-    virtual int64_t handle_write(const error_code& ec, std::size_t size);
+	virtual auto handle_write(const error_code& ec, std::size_t size) -> int64_t;
 
 protected:
-	std::vector<asio::const_buffer> get_output_buffers() const;
+	//-----------------------------------------------------------------------------
+	/// Stops the socket with the specified error code.
+	/// Can be called internally from a failed async operation
+	//-----------------------------------------------------------------------------
+	virtual void stop_socket();
+
+	//-----------------------------------------------------------------------------
+	/// Returnsthe internal queue as asio buffers
+	//-----------------------------------------------------------------------------
+	auto get_output_buffers() const -> std::vector<asio::const_buffer>;
+
 	//-----------------------------------------------------------------------------
 	/// Checks whether the connection is stopped i.e the stop method
 	/// has been called at least once.
@@ -312,17 +321,17 @@ inline void asio_connection<socket_type>::await_output()
 }
 
 template <typename socket_type>
-inline int64_t asio_connection<socket_type>::handle_read(const error_code& ec, std::size_t size)
+inline auto asio_connection<socket_type>::handle_read(const error_code& ec, std::size_t size) -> int64_t
 {
 	if(this->stopped())
 	{
-        return -1;
+		return -1;
 	}
 
 	if(ec)
 	{
 		this->stop(ec);
-        return -1;
+		return -1;
 	}
 
 	// NOTE! Thread safety:
@@ -338,12 +347,12 @@ inline int64_t asio_connection<socket_type>::handle_read(const error_code& ec, s
 	{
 		log() << e.what();
 		this->stop(make_error_code(errc::data_corruption));
-        return -1;
+		return -1;
 	}
 	catch(...)
 	{
 		this->stop(make_error_code(errc::data_corruption));
-        return -1;
+		return -1;
 	}
 
 	if(is_ready)
@@ -366,21 +375,21 @@ inline int64_t asio_connection<socket_type>::handle_read(const error_code& ec, s
 		}
 	}
 
-    return static_cast<int64_t> (size);
+	return static_cast<int64_t>(size);
 }
 
 template <typename socket_type>
-inline int64_t asio_connection<socket_type>::handle_write(const error_code& ec, std::size_t size)
+inline auto asio_connection<socket_type>::handle_write(const error_code& ec, std::size_t size) -> int64_t
 {
 	if(this->stopped())
 	{
-        return -1;
+		return -1;
 	}
 
 	if(ec)
 	{
 		this->stop(ec);
-        return -1;
+		return -1;
 	}
 
 	auto left_to_processs = size;
@@ -405,11 +414,11 @@ inline int64_t asio_connection<socket_type>::handle_write(const error_code& ec, 
 		}
 	}
 	this->await_output();
-    return static_cast<int64_t> (size);
+	return static_cast<int64_t>(size);
 }
 
 template <typename socket_type>
-inline std::vector<asio::const_buffer> asio_connection<socket_type>::get_output_buffers() const
+inline auto asio_connection<socket_type>::get_output_buffers() const -> std::vector<asio::const_buffer>
 {
 	std::lock_guard<std::mutex> lock(this->guard_);
 	std::vector<asio::const_buffer> buffers;
