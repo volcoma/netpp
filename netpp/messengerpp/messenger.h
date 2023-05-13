@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <mutex>
+#include <map>
 #include <netpp/connector.h>
 
 namespace net

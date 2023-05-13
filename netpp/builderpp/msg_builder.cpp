@@ -7,53 +7,6 @@
 
 namespace net
 {
-namespace utils
-{
-
-template <class T>
-static void endian_swap(T* objp)
-{
-	auto memp = reinterpret_cast<std::uint8_t*>(objp);
-	std::reverse(memp, memp + sizeof(T));
-}
-bool is_big_endian()
-{
-	union {
-		uint32_t i;
-		char c[sizeof(uint32_t)];
-	} val = {0x01020304};
-
-	return val.c[0] == 1;
-}
-
-bool is_little_endian()
-{
-	return !is_big_endian();
-}
-
-template <typename T>
-size_t to_bytes(T data, uint8_t* dst)
-{
-	// endian_swap(&data);
-	const auto begin = reinterpret_cast<const uint8_t*>(std::addressof(data));
-
-	const auto sz = sizeof(T);
-	std::memcpy(dst, begin, sz);
-
-	return sz;
-}
-
-template <typename T>
-size_t from_bytes(T& data, const uint8_t* src)
-{
-	static_assert(std::is_trivially_copyable<T>::value, "not a trivially_copyable type");
-	auto dst = reinterpret_cast<uint8_t*>(std::addressof(data));
-	const auto sz = sizeof(T);
-	std::memcpy(dst, src, sz);
-	// endian_swap(&data);
-	return sz;
-}
-}
 
 single_buffer_builder::single_buffer_builder()
 {

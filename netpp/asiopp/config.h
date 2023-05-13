@@ -12,93 +12,95 @@ namespace net
 
 struct service_config
 {
-	size_t workers = std::thread::hardware_concurrency();
-	std::function<void(std::thread&, const std::string&)> set_thread_name = nullptr;
+    size_t workers = std::thread::hardware_concurrency();
+    std::function<void(std::thread&, const std::string&)> set_thread_name = nullptr;
 };
 
 struct ssl_certificate
 {
-	using properties_t = std::map<std::string, std::string>;
+    using properties_t = std::map<std::string, std::string>;
 
-	std::string serial_number;
+    std::string serial_number;
 
-	std::string issuer;
-	properties_t issuer_properties;
+    std::string issuer;
+    properties_t issuer_properties;
 
-	std::string subject;
-	properties_t subject_properties;
+    std::string subject;
+    properties_t subject_properties;
 
-	std::vector<uint8_t> sha256;
-	std::vector<uint8_t> sha512;
+    std::vector<uint8_t> sha256;
+    std::vector<uint8_t> sha512;
 
-	int version{0};
-	int public_key_bit_size{0};
+    int version{0};
+    int public_key_bit_size{0};
+
+    std::string hash;
 };
 
-enum class ssl_method : uint8_t
+enum class ssl_method
 {
-	/// Generic SSL version 2.
-	sslv2,
+    /// Generic SSL version 2.
+    sslv2,
 
-	/// SSL version 2 client.
-	sslv2_client,
+    /// SSL version 2 client.
+    sslv2_client,
 
-	/// SSL version 2 server.
-	sslv2_server,
+    /// SSL version 2 server.
+    sslv2_server,
 
-	/// Generic SSL version 3.
-	sslv3,
+    /// Generic SSL version 3.
+    sslv3,
 
-	/// SSL version 3 client.
-	sslv3_client,
+    /// SSL version 3 client.
+    sslv3_client,
 
-	/// SSL version 3 server.
-	sslv3_server,
+    /// SSL version 3 server.
+    sslv3_server,
 
-	/// Generic TLS version 1.
-	tlsv1,
+    /// Generic TLS version 1.
+    tlsv1,
 
-	/// TLS version 1 client.
-	tlsv1_client,
+    /// TLS version 1 client.
+    tlsv1_client,
 
-	/// TLS version 1 server.
-	tlsv1_server,
+    /// TLS version 1 server.
+    tlsv1_server,
 
-	/// Generic SSL/TLS.
-	sslv23,
+    /// Generic SSL/TLS.
+    sslv23,
 
-	/// SSL/TLS client.
-	sslv23_client,
+    /// SSL/TLS client.
+    sslv23_client,
 
-	/// SSL/TLS server.
-	sslv23_server,
+    /// SSL/TLS server.
+    sslv23_server,
 
-	/// Generic TLS version 1.1.
-	tlsv11,
+    /// Generic TLS version 1.1.
+    tlsv11,
 
-	/// TLS version 1.1 client.
-	tlsv11_client,
+    /// TLS version 1.1 client.
+    tlsv11_client,
 
-	/// TLS version 1.1 server.
-	tlsv11_server,
+    /// TLS version 1.1 server.
+    tlsv11_server,
 
-	/// Generic TLS version 1.2.
-	tlsv12,
+    /// Generic TLS version 1.2.
+    tlsv12,
 
-	/// TLS version 1.2 client.
-	tlsv12_client,
+    /// TLS version 1.2 client.
+    tlsv12_client,
 
-	/// TLS version 1.2 server.
-	tlsv12_server,
+    /// TLS version 1.2 server.
+    tlsv12_server,
 
-	/// Generic TLS.
-	tls,
+    /// Generic TLS.
+    tls,
 
-	/// TLS client.
-	tls_client,
+    /// TLS client.
+    tls_client,
 
-	/// TLS server.
-	tls_server
+    /// TLS server.
+    tls_server
 };
 
 enum ssl_handshake : uint8_t
@@ -115,16 +117,18 @@ enum ssl_handshake : uint8_t
 
 struct ssl_config
 {
-	std::string cert_auth_file;
-	std::string cert_chain_file;
-	std::string private_key_file;
-	std::string dh_file;
-	std::string private_key_password;
-	std::function<bool(const ssl_certificate&)> verify_callback;
-	ssl_method method = ssl_method::tlsv12;
-	bool require_peer_cert = false;
-
-	// This can be used to specify a different behaviour
+    std::string cert_auth_file;
+    std::string cert_chain_file;
+    std::string private_key_file;
+    std::string dh_file;
+    std::string private_key_password;
+    std::function<bool(const ssl_certificate&)> verify_callback;
+    std::function<void(const std::string&)> get_peer_cert_callback;
+    ssl_method method = ssl_method::tlsv12;
+    bool require_peer_cert = false;
+    bool do_not_verify_peer = false;
+    long options = 0; //additional options for ssl context
+    // This can be used to specify a different behaviour
 	// e.g a tcp server can be treated as a ssl hanshake client
 	// or otherwise a tcp client can be a ssl hanshake server
 	// in a one-way authentication

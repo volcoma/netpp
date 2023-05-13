@@ -17,14 +17,21 @@ void set_logger(const logger& log);
 //-----------------------------------------------------------------------------
 struct log
 {
-	~log();
-	template <typename T>
-	log& operator<<(T&& val)
-	{
-		str << val;
-		return *this;
-	}
+    ~log();
+    template <typename T>
+    log& operator<<(T&& val)
+    {
+        str << val;
+        return *this;
+    }
 
-	std::stringstream str;
+    template <typename T>
+    log& operator,(T&& val)
+    {
+        str << val;
+        return *this;
+    }
+
+    std::stringstream str;
 };
 }

@@ -159,7 +159,7 @@ int main(int argc, char* argv[])
 	{
 		std::cerr << "Usage: <server/client/both>"
 				  << "\n";
-		return 1;
+		return 0;
 	}
 	std::string what = argv[1];
 	int count = 1;

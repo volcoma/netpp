@@ -164,7 +164,7 @@ void messenger<T, OArchive, IArchive>::on_new_connection(connection_ptr& connect
 
 	auto sentinel = std::weak_ptr<void>(conn_info.sentinel);
 	connection->on_msg.emplace_front(
-		[weak_this, info, sentinel](connection::id_t id, byte_buffer msg, data_channel channel) {
+		[weak_this, info, sentinel](connection::id_t id, byte_buffer msg, data_channel channel, connection::details details) {
 			auto shared_this = weak_this.lock();
 			if(!shared_this || sentinel.expired())
 			{

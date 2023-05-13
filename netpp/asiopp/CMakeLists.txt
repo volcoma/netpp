@@ -1,22 +1,28 @@
-file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
-set(target_name asiopp)
+cmake_minimum_required(VERSION 3.4.3)
 
-add_library(${target_name} ${libsrc})
+set(LIB_NAME asiopp)
 
-target_link_libraries(${target_name} PUBLIC netpp asio)
+file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.c"
+                          "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+                          "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
+                          "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
+add_library(${LIB_NAME} ${SOURCES})
 
-target_include_directories(${target_name}
-    PUBLIC
-		${CMAKE_CURRENT_SOURCE_DIR}/..
-)
-
-set_target_properties(${target_name} PROPERTIES
+# Add definitions
+set_target_properties(${LIB_NAME} PROPERTIES
     CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED ON
-    CXX_EXTENSIONS OFF
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
     POSITION_INDEPENDENT_CODE ON
-	WINDOWS_EXPORT_ALL_SYMBOLS ON
+    WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
 
-include(target_warning_support)
-set_warning_level(${target_name} ultra)
+target_link_libraries(${LIB_NAME} PUBLIC netpp asio)
+
+if(WIN32)
+    target_compile_definitions(${LIB_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS)
+    target_link_libraries(${LIB_NAME} PRIVATE IPHLPAPI)
+endif()
+
+target_include_directories(${LIB_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_include_directories(${LIB_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../..)

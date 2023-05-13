@@ -1,18 +1,8 @@
 #pragma once
 #include "../common/connection.hpp"
 
-#include <asio/basic_stream_socket.hpp>
-#include <asio/buffer.hpp>
-#include <asio/error.hpp>
-#include <asio/io_service.hpp>
 #include <asio/ip/udp.hpp>
-#include <asio/read.hpp>
-#include <asio/steady_timer.hpp>
-#include <asio/strand.hpp>
-#include <asio/write.hpp>
-#include <chrono>
-#include <deque>
-#include <thread>
+#include <map>
 
 namespace net
 {
@@ -24,49 +14,45 @@ using asio::ip::udp;
 class udp_connection : public asio_connection<udp::socket>
 {
 public:
-	//-----------------------------------------------------------------------------
-	/// Aliases.
-	//-----------------------------------------------------------------------------
-	using base_type = asio_connection<udp::socket>;
+    //-----------------------------------------------------------------------------
+    /// Aliases.
+    //-----------------------------------------------------------------------------
+    using base_type = asio_connection<udp::socket>;
 
-	//-----------------------------------------------------------------------------
-	/// Inherited constructors
-	//-----------------------------------------------------------------------------
-	using base_type::base_type;
+    //-----------------------------------------------------------------------------
+    /// Inherited constructors
+    //-----------------------------------------------------------------------------
+    using base_type::base_type;
 
-	//-----------------------------------------------------------------------------
-	/// Sets and endpoint and read/write rights
-	//-----------------------------------------------------------------------------
-	void set_endpoint(udp::endpoint endpoint);
+    //-----------------------------------------------------------------------------
+    /// Sets and endpoint and read/write rights
+    //-----------------------------------------------------------------------------
+    void set_endpoint(udp::endpoint endpoint);
 
-	//-----------------------------------------------------------------------------
-	/// Starts the async read operation awaiting for data
-	/// to be read from the socket.
-	//-----------------------------------------------------------------------------
-	void start_read() override;
+    //-----------------------------------------------------------------------------
+    /// Starts the async read operation awaiting for data
+    /// to be read from the socket.
+    //-----------------------------------------------------------------------------
+    void start_read() override;
 
-	//-----------------------------------------------------------------------------
-	/// Callback to be called whenever data was read from the socket
-	/// or an error occured.
-	//-----------------------------------------------------------------------------
-	auto handle_read(const error_code& ec, std::size_t size) -> int64_t override;
-	auto handle_read(const error_code& ec, const uint8_t* buf, std::size_t size) -> int64_t;
+    //-----------------------------------------------------------------------------
+    /// Callback to be called whenever data was read from the socket
+    /// or an error occured.
+    //-----------------------------------------------------------------------------
+    int64_t handle_read(const error_code& ec, std::size_t size) override;
+    int64_t handle_read(const error_code& ec, const uint8_t* buf, std::size_t size);
 
-	//-----------------------------------------------------------------------------
-	/// Starts the async write operation awaiting for data
-	/// to be written to the socket.
-	//-----------------------------------------------------------------------------
-	void start_write() override;
+    //-----------------------------------------------------------------------------
+    /// Starts the async write operation awaiting for data
+    /// to be written to the socket.
+    //-----------------------------------------------------------------------------
+    void start_write() override;
 
 private:
-	/// Endpoint used for sending
-	udp::endpoint endpoint_;
 
-	/// Remote endpoint filled when recieving
-	udp::endpoint remote_endpoint_;
-
-	/// Input buffer used when recieving
-	input_buffer input_buffer_{};
+    /// Input buffer used when recieving
+    raw_buffer input_buffer_{};
+    std::map<socket_endpoint, output_buffer> input_buffers_ {};
 };
 } // namespace udp
 } // namespace net

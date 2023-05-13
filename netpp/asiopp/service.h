@@ -1,5 +1,8 @@
 #pragma once
+
 #include "config.h"
+#include "address.h"
+
 #include <netpp/connector.h>
 namespace net
 {
@@ -23,22 +26,34 @@ void deinit_services();
 connector_ptr create_tcp_server(uint16_t port, std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
-/// Creates a tcp v4/v6 client
+/// Creates a tcp v4/v6 client with hostname
 //-----------------------------------------------------------------------------
 connector_ptr create_tcp_client(const std::string& host, uint16_t port,
-								std::chrono::seconds heartbeat = std::chrono::seconds{0});
+                                std::chrono::seconds heartbeat = std::chrono::seconds{0}, bool auto_reconnect = true);
+
+//-----------------------------------------------------------------------------
+/// Creates a tcp v4/v6 client with ip::address
+//-----------------------------------------------------------------------------
+connector_ptr create_tcp_client(const ip::address& address, uint16_t port,
+                                std::chrono::seconds heartbeat = std::chrono::seconds{0}, bool auto_reconnect = true);
 
 //-----------------------------------------------------------------------------
 /// Creates a secure tcp v4/v6 server
 //-----------------------------------------------------------------------------
 connector_ptr create_tcp_ssl_server(uint16_t port, const ssl_config& config = {},
-									std::chrono::seconds heartbeat = std::chrono::seconds{0});
+                                    std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
-/// Creates a secure tcp v4/v6 client
+/// Creates a secure tcp v4/v6 client with hostname
 //-----------------------------------------------------------------------------
 connector_ptr create_tcp_ssl_client(const std::string& host, uint16_t port, const ssl_config& config = {},
-									std::chrono::seconds heartbeat = std::chrono::seconds{0});
+                                    std::chrono::seconds heartbeat = std::chrono::seconds{0}, bool auto_reconnect = true);
+
+//-----------------------------------------------------------------------------
+/// Creates a secure tcp v4/v6 client with ip::address
+//-----------------------------------------------------------------------------
+connector_ptr create_tcp_ssl_client(const ip::address& address, uint16_t port, const ssl_config& config = {},
+                                    std::chrono::seconds heartbeat = std::chrono::seconds{0}, bool auto_reconnect = true);
 
 //-----------------------------------------------------------------------------
 /// Creates a tcp local(domain socket) server.
@@ -72,20 +87,23 @@ connector_ptr create_tcp_ssl_local_client(const std::string& file, const ssl_con
 /// one - one communication via udp.
 //-----------------------------------------------------------------------------
 connector_ptr create_udp_unicast_server(uint16_t port,
-										std::chrono::seconds heartbeat = std::chrono::seconds{0});
+                                        std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
 /// Creates a udp unicast client.
 /// one - one communication via udp.
 //-----------------------------------------------------------------------------
 connector_ptr create_udp_unicast_client(const std::string& unicast_address, uint16_t port,
-										std::chrono::seconds heartbeat = std::chrono::seconds{0});
+                                        std::chrono::seconds heartbeat = std::chrono::seconds{0});
+connector_ptr create_udp_unicast_client(const ip::address& unicast_address, uint16_t port,
+                                        std::chrono::seconds heartbeat = std::chrono::seconds{0});
 
 //-----------------------------------------------------------------------------
 /// Creates a udp multicast (connector).
 /// one/many senders - one/many recievers communication via udp.
 //-----------------------------------------------------------------------------
 connector_ptr create_udp_multicaster(const std::string& multicast_address, uint16_t port);
+connector_ptr create_udp_multicaster(const ip::address& multicast_address, uint16_t port);
 
 //-----------------------------------------------------------------------------
 /// Creates a udp broacast connector.
@@ -94,34 +112,39 @@ connector_ptr create_udp_multicaster(const std::string& multicast_address, uint1
 /// superseded by multicast addresses.
 /// Consider Using multicast.
 //-----------------------------------------------------------------------------
-connector_ptr create_udp_broadcaster(const std::string& host_address, const std::string& net_mask,
-									 uint16_t port);
+connector_ptr create_udp_broadcaster(const std::string& host_address, const std::string& net_mask, uint16_t port);
+connector_ptr create_udp_broadcaster(const ip::address_v4& host_address, const ip::address_v4& net_mask, uint16_t port);
 
-namespace version_flags
-{
-enum
-{
-	none = 0,
-	v4 = 1 << 1,
-	v6 = 1 << 2,
-
-	all = v4 | v6
-};
-}
-
-namespace type_flags
-{
-enum
-{
-	none = 0,
-	unicast = 1 << 1,
-	multicast = 1 << 2,
-
-	all = unicast | multicast
-};
-}
 std::string host_name();
-std::vector<std::string> host_addresses(uint32_t v_flags = version_flags::all,
-										uint32_t t_flags = type_flags::all);
 
+//-----------------------------------------------------------------------------
+/// Return all interfaces with addreses belong to them
+/// return map with mac address as key and vector of addresses
+//-----------------------------------------------------------------------------
+struct interface
+{
+    // interface name
+    std::string id;
+    // mac address
+    std::string hw_address;
+    // ip's associated with this interface
+    std::vector<ip::address> addresses;
+};
+
+using interfaces_t = std::vector<interface>;
+interfaces_t get_interfaces();
+
+//-----------------------------------------------------------------------------
+/// Return all addresses on this machine
+/// return vector of ip::address
+//-----------------------------------------------------------------------------
+std::vector<ip::address> get_addresses();
+
+ip::address resolve_ip_address(const std::string& hostname, std::error_code& ec);
+
+//-----------------------------------------------------------------------------
+/// Return address and port by given endpoint
+/// return tuple of ip::address and uint16_t
+//-----------------------------------------------------------------------------
+std::tuple<ip::address, uint16_t> resolve_endpoint(const std::string& endpoint, std::error_code& ec);
 } // namespace net
