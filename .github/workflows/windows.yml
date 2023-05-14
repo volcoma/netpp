@@ -29,6 +29,8 @@ jobs:
     - name: Setup MinGW
       if: matrix.config.cc == 'mingw'
       uses: egor-tensin/setup-mingw@v2
+      with:
+        version: '12.1.0'
     - name: Build
       run: |
         cmake --preset windows-${{matrix.config.arch}}-${{matrix.config.cc}}
