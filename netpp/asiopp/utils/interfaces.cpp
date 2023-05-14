@@ -157,7 +157,7 @@ std::string get_mac_address(const std::string& interface)
             continue;
         }
 
-        if (iterface != addr->ifa_name)
+        if (interface != addr->ifa_name)
         {
             continue;
         }
