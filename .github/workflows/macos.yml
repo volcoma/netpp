@@ -27,7 +27,7 @@ jobs:
       run: sudo xcode-select --switch "/Applications/Xcode_${{matrix.config.xcode}}.app"
     - name: Build
       run: |
-        cmake --preset macos-${{matrix.config.arch}}
+        cmake --preset macos-${{matrix.config.arch}} -DOPENSSL_ROOT_DIR=$(brew --prefix openssl)
         cmake --build --preset macos-${{matrix.config.arch}}-release
     - name: Test
       run: |
