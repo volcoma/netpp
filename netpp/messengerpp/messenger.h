@@ -41,6 +41,7 @@ struct serializer
 	static T from_buffer(byte_buffer&&);
 };
 
+
 template <typename T, typename OArchive, typename IArchive>
 class messenger : public std::enable_shared_from_this<messenger<T, OArchive, IArchive>>
 {
@@ -53,11 +54,12 @@ public:
 
 	using on_connect_t = std::function<void(connection::id_t)>;
 	using on_disconnect_t = std::function<void(connection::id_t, const error_code&)>;
-	using on_msg_t = std::function<void(connection::id_t, msg_t)>;
+	using on_msg_t = std::function<void(connection::id_t, msg_t, const connection::details&)>;
+
 	//-----------------------------------------------------------------------------
 	/// Creates a messenger
 	//-----------------------------------------------------------------------------
-	static ptr create();
+	static auto create() -> ptr;
 
 	//-----------------------------------------------------------------------------
 	/// Removes all connnectors and disconnects all connections.
@@ -76,8 +78,8 @@ public:
 	/// 'on_request' - callback to be triggered when a new request that expects a
 	/// response is received from a specific connection.
 	//-----------------------------------------------------------------------------
-	connector::id_t add_connector(connector_ptr connector, on_connect_t on_connect,
-								  on_disconnect_t on_disconnect, on_msg_t on_msg);
+	auto add_connector(connector_ptr connector, on_connect_t on_connect,
+								  on_disconnect_t on_disconnect, on_msg_t on_msg) -> connector::id_t;
 
 	//-----------------------------------------------------------------------------
 	/// Removes a connector from messenger. Thread safe.
@@ -99,7 +101,19 @@ public:
 	void disconnect(connection::id_t id,
 					const error_code& err = make_error_code(errc::user_triggered_disconnect));
 
-	bool empty() const;
+    //-----------------------------------------------------------------------------
+    /// Disconnects all connections for the specified connector. Thread safe.
+    /// 'id' - the connector which connnections to be disconnected.
+    ///     //-----------------------------------------------------------------------------
+    void disconnect_all(connector::id_t id, const error_code& err = {});
+
+    //-----------------------------------------------------------------------------
+    /// Disconnects all connections for the specified connector and removes the connector. Thread safe.
+    /// 'id' - the connector to be disconnected.
+    //-----------------------------------------------------------------------------
+    void remove_and_disconnect_all(connector::id_t id, const error_code& err = {});
+
+	auto empty() const -> bool;
 
 private:
 	messenger() = default;
@@ -123,9 +137,9 @@ private:
 	void on_connect(connection::id_t id, connection_info&& conn_info, const user_info_ptr& info);
 	void on_disconnect(connection::id_t id, error_code ec, const user_info_ptr& info);
 	void on_raw_msg(connection::id_t id, byte_buffer& raw_msg, data_channel channel,
-					const user_info_ptr& info);
+					const user_info_ptr& info, const connection::details& details);
 
-	void on_msg(connection::id_t id, msg_t& msg, const user_info_ptr& info);
+	void on_msg(connection::id_t id, msg_t& msg, const user_info_ptr& info, const connection::details& details);
 	void send(connection::id_t id, msg_t& msg, data_channel channel);
 
 	/// lock for container synchronization

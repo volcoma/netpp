@@ -74,11 +74,11 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
     {
         net::log() << "server connected " << id;
         server_con = id;
-//        auto net = net::get_network<std::string>();
-//        if(net)
-//        {
-//            net->send_msg(id, "echo");
-//        }
+        auto net = net::get_network<std::string>();
+        if(net)
+        {
+            net->disconnect(id);
+        }
     },
     [](net::connection::id_t id, net::error_code ec)
     {
@@ -88,15 +88,15 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
             server_con = 0;
         }
     },
-    [](net::connection::id_t id, std::string msg)
+    [](net::connection::id_t id, std::string msg, net::connection::details details)
     {
-        net::log() << "server client " << id << " on_msg: " << msg;
-        std::this_thread::sleep_for(16ms);
-        auto net = net::get_network<std::string>();
-        if(net)
-        {
-            net->send_msg(id, std::move(msg));
-        }
+//        net::log() << "server client " << id << " on_msg: " << msg;
+//        std::this_thread::sleep_for(16ms);
+//        auto net = net::get_network<std::string>();
+//        if(net)
+//        {
+//            net->send_msg(id, std::move(msg));
+//        }
     });
 	// clang-format on
 
@@ -110,25 +110,25 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
         [&](net::connection::id_t id)
         {
 		    net::log() << "client " << id << " connected";
-            auto net = net::get_network<std::string>();
-            if(net)
-            {
-                net->send_msg(id, std::to_string(id));
-            }
+//            auto net = net::get_network<std::string>();
+//            if(net)
+//            {
+//                net->send_msg(id, std::to_string(id));
+//            }
 		},
 		[](net::connection::id_t id, const net::error_code& ec)
         {
 		    net::log() << "client " << id << " disconnected. Reason : " << ec.message();
 		},
-		[](net::connection::id_t id, std::string msg)
+		[](net::connection::id_t id, std::string msg, net::connection::details details)
         {
-		    net::log() << "client " << id << " on_msg: " << msg;
-		    std::this_thread::sleep_for(16ms);
-            auto net = net::get_network<std::string>();
-		    if(net)
-		    {
-		 	   net->send_msg(id, std::move(msg));
-		    }
+//		    net::log() << "client " << id << " on_msg: " << msg;
+//		    std::this_thread::sleep_for(16ms);
+//            auto net = net::get_network<std::string>();
+//		    if(net)
+//		    {
+//		 	   net->send_msg(id, std::move(msg));
+//		    }
 		});
 		// clang-format on
 	}
@@ -137,16 +137,16 @@ void run_test(net::connector_ptr&& server, std::vector<net::connector_ptr>&& cli
 
     auto end = std::chrono::steady_clock::now() + 115s;
 
-	while(std::chrono::steady_clock::now() < end)
+	while(true);//std::chrono::steady_clock::now() < end)
 	{
         static int i = 1;
 
         //if(i++ % 50 == 0)
 
-        if(i++ % 5 == 0)
-        {
-            net->disconnect(server_con);
-        }
+//        if(i++ % 5 == 0)
+//        {
+//            net->disconnect(server_con);
+//        }
         std::this_thread::sleep_for(1s);
 	}
 	server_con = 0;
@@ -262,18 +262,18 @@ int main(int argc, char* argv[])
     using creator = std::function<net::connector_ptr(config)>;
     std::vector<std::tuple<std::string, creator, creator>> creators =
     {
-        std::make_tuple
-        (
-            "UNICAST",
-            [](const config& conf)
-            {
-                return net::create_udp_unicast_client(conf.address, conf.port, std::chrono::seconds(2));
-            },
-            [](const config& conf)
-            {
-                return net::create_udp_unicast_server(conf.port, std::chrono::seconds(2));
-            }
-        ),
+//        std::make_tuple
+//        (
+//            "UNICAST",
+//            [](const config& conf)
+//            {
+//                return net::create_udp_unicast_client(conf.address, conf.port, std::chrono::seconds(2));
+//            },
+//            [](const config& conf)
+//            {
+//                return net::create_udp_unicast_server(conf.port, std::chrono::seconds(2));
+//            }
+//        ),
 //        std::make_tuple
 //        (
 //            "MULTICAST",
@@ -298,18 +298,18 @@ int main(int argc, char* argv[])
 //                return net::create_udp_unicast_server(conf.port);
 //            }
 //        ),
-//        std::make_tuple
-//        (
-//            "TCP",
-//            [](const config& conf)
-//            {
-//                return net::create_tcp_client(conf.address, conf.port);
-//            },
-//            [](const config& conf)
-//            {
-//                return net::create_tcp_server(conf.port);
-//            }
-//        ),
+        std::make_tuple
+        (
+            "TCP",
+            [](const config& conf)
+            {
+                return net::create_tcp_client(conf.address, conf.port);
+            },
+            [](const config& conf)
+            {
+                return net::create_tcp_server(conf.port);
+            }
+        ),
 //        std::make_tuple
 //        (
 //            "TCP SSL",

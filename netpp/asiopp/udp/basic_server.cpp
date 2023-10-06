@@ -124,12 +124,12 @@ basic_server::on_handshake_complete(const std::shared_ptr<udp::socket>& socket)
                     return;
                 }
 
-                shared_this->io_context_.post(shared_this->strand_->wrap([shared_this, remote_endpoint]() {
+                shared_this->strand_->post([shared_this, remote_endpoint]() {
                     auto sz = shared_this->connections_.size();
                     shared_this->connections_.erase(remote_endpoint);
                     auto sz_after = shared_this->connections_.size();
                     net::log() << "sz before : " << sz << ", sz after : " << sz_after;
-                }));
+                });
 
             });
 
@@ -141,31 +141,31 @@ basic_server::on_handshake_complete(const std::shared_ptr<udp::socket>& socket)
 
 void basic_server::async_recieve(std::shared_ptr<udp::socket> socket)
 {
-    io_context_.post(
-        strand_->wrap([ this, shared_this = shared_from_this(), socket = std::move(socket) ]() mutable {
 
-            // Start an asynchronous operation to read a certain number of bytes.
-            // Here std::bind + shared_from_this is used because of the composite op async_*
-            // We want it to operate on valid data until the handler is called.
-            socket->async_receive_from(
-                asio::buffer(input_buffer_.buffer.data() + input_buffer_.offset,
-                             input_buffer_.buffer.size() - input_buffer_.offset),
-                remote_endpoint_, // asio::socket_base::message_peek,
-                strand_->wrap([shared_this, socket](const error_code& ec, std::size_t size) mutable {
-                    if(ec)
-                    {
-                        socket.reset();
+    strand_->post([ this, shared_this = shared_from_this(), socket = std::move(socket) ]() mutable {
 
-                        log() << "Receive error: " << ec.message();
-                        // Start accepting new connections
-                        shared_this->restart();
-                    }
-                    else
-                    {
-                        shared_this->on_recv_data(socket, size);
-                    }
-                }));
-        }));
+        // Start an asynchronous operation to read a certain number of bytes.
+        // Here std::bind + shared_from_this is used because of the composite op async_*
+        // We want it to operate on valid data until the handler is called.
+        socket->async_receive_from(
+            asio::buffer(input_buffer_.buffer.data() + input_buffer_.offset,
+                         input_buffer_.buffer.size() - input_buffer_.offset),
+            remote_endpoint_, // asio::socket_base::message_peek,
+            strand_->wrap([shared_this, socket](const error_code& ec, std::size_t size) mutable {
+                if(ec)
+                {
+                    socket.reset();
+
+                    log() << "Receive error: " << ec.message();
+                    // Start accepting new connections
+                    shared_this->restart();
+                }
+                else
+                {
+                    shared_this->on_recv_data(socket, size);
+                }
+            }));
+    });
 }
 
 void basic_server::restart()

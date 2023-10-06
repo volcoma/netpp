@@ -74,6 +74,7 @@ public:
     //-----------------------------------------------------------------------------
     asio_connection(std::shared_ptr<socket_type> socket, const msg_builder::creator& builder_creator,
                     asio::io_service& context, std::chrono::seconds heartbeat = std::chrono::seconds(0));
+
     //-----------------------------------------------------------------------------
     /// Starts the connection. Awaiting input and output
     //-----------------------------------------------------------------------------
@@ -240,8 +241,8 @@ template <typename socket_type>
 inline void asio_connection<socket_type>::start()
 {
     connected_ = true;
-    start_read();
-    await_output();
+    strand_->post(std::bind(&start_read, this->shared_from_this()));
+    strand_->post(std::bind(&await_output, this->shared_from_this()));
 
     if(heartbeat_check_interval_ > std::chrono::seconds::zero())
     {
@@ -253,15 +254,20 @@ inline void asio_connection<socket_type>::start()
 template <typename socket_type>
 inline void asio_connection<socket_type>::stop(const error_code& ec)
 {
+
+    if(!connected_.exchange(false))
+    {
+        return;
+    }
+
     {
         std::lock_guard<std::mutex> lock(guard_);
         non_empty_output_queue_.cancel();
         heartbeat_check_timer_.cancel();
         heartbeat_reply_timer_.cancel();
-        stop_socket();
+        strand_->post(std::bind(&stop_socket, this->shared_from_this()));
     }
 
-    if(connected_.exchange(false))
     {
         for(const auto& callback : on_disconnect)
         {
@@ -273,15 +279,12 @@ inline void asio_connection<socket_type>::stop(const error_code& ec)
 template <typename socket_type>
 inline void asio_connection<socket_type>::stop_socket()
 {
-    auto& service = socket_->get_io_service();
-    service.post(strand_->wrap([socket = socket_]() {
-        if(socket->lowest_layer().is_open())
-        {
-            error_code ec;
-            socket->lowest_layer().shutdown(asio::socket_base::shutdown_both, ec);
-            socket->lowest_layer().close(ec);
-        }
-    }));
+    if(socket_->lowest_layer().is_open())
+    {
+        error_code ec;
+        socket_->lowest_layer().shutdown(asio::socket_base::shutdown_both, ec);
+        socket_->lowest_layer().close(ec);
+    }
 }
 
 template <typename socket_type>
@@ -395,7 +398,7 @@ inline int64_t asio_connection<socket_type>::handle_read(const error_code& ec, s
 
             for(const auto& callback : this->on_msg)
             {
-                callback(this->id, msg, channel, std::move(d));
+                callback(this->id, msg, channel, d);
             }
         }
         else
@@ -469,6 +472,7 @@ inline void asio_connection<socket_type>::schedule_heartbeat()
     using namespace std::chrono_literals;
     heartbeat_reply_timer_.expires_after(1s);
     heartbeat_reply_timer_.async_wait([ this, sentinel = this->shared_from_this() ](const error_code& ec) {
+
         if(this->stopped())
         {
             return;
@@ -532,6 +536,7 @@ inline void asio_connection<socket_type>::await_heartbeat()
     // Wait before checking the heartbeat.
     heartbeat_check_timer_.expires_after(heartbeat_check_interval_);
     heartbeat_check_timer_.async_wait([ this, sentinel = this->shared_from_this() ](const error_code& ec) {
+
         if(this->stopped())
         {
             return;

@@ -12,8 +12,7 @@ void udp_connection::set_endpoint(udp::endpoint endpoint)
 
 void udp_connection::start_read()
 {
-    auto& service = socket_->get_io_service();
-    service.post(strand_->wrap([ this, shared_this = shared_from_this() ]() {
+    strand_->post([ this, shared_this = shared_from_this() ]() {
 
         if(stopped())
         {
@@ -28,7 +27,7 @@ void udp_connection::start_read()
                                     remote_endpoint_,
                                     strand_->wrap(std::bind(&base_type::handle_read, shared_this,
                                                             std::placeholders::_1, std::placeholders::_2)));
-    }));
+    });
 }
 int64_t udp_connection::handle_read(const error_code& ec, std::size_t size)
 {
@@ -109,8 +108,7 @@ int64_t udp_connection::handle_read(const error_code& ec, const uint8_t* buf, st
 
 void udp_connection::start_write()
 {
-    auto& service = socket_->get_io_service();
-    service.post(strand_->wrap([ this, shared_this = shared_from_this() ]() {
+    strand_->post([ this, shared_this = shared_from_this() ]() {
         if(stopped())
         {
             return;
@@ -122,7 +120,7 @@ void udp_connection::start_write()
         socket_->async_send_to(this->get_output_buffers(), this->endpoint_,
                                strand_->wrap(std::bind(&base_type::handle_write, shared_this,
                                                        std::placeholders::_1, std::placeholders::_2)));
-    }));
+    });
 }
 
 } // namespace udp

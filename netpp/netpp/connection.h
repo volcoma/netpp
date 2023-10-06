@@ -32,7 +32,7 @@ struct connection
     //-----------------------------------------------------------------------------
     using id_t = uint64_t;
     using on_disconnect_t = std::function<void(connection::id_t, const error_code&)>;
-    using on_msg_t = std::function<void(connection::id_t, byte_buffer, data_channel, details)>;
+    using on_msg_t = std::function<void(connection::id_t, byte_buffer, data_channel, const details&)>;
 
     connection();
     virtual ~connection() = default;

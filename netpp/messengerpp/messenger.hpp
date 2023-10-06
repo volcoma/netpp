@@ -107,6 +107,35 @@ void messenger<T, OArchive, IArchive>::disconnect(connection::id_t id, const err
 }
 
 template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::remove_and_disconnect_all(connector::id_t id, const error_code& err)
+{
+    remove_connector(id);
+    disconnect_all(id, err);
+}
+
+template <typename T, typename OArchive, typename IArchive>
+void messenger<T, OArchive, IArchive>::disconnect_all(connector::id_t id, const error_code& err)
+{
+    std::vector<connection::id_t> connections_to_disconnect;
+
+    {
+        std::unique_lock<std::mutex> lock(guard_);
+        for(const auto& kvp : connections_)
+        {
+            if(kvp.second.connector_id == id)
+            {
+                connections_to_disconnect.emplace_back(kvp.first);
+            }
+        }
+    }
+
+    for(const auto id : connections_to_disconnect)
+    {
+        disconnect(id, err);
+    }
+}
+
+template <typename T, typename OArchive, typename IArchive>
 void messenger<T, OArchive, IArchive>::remove_connector(connector::id_t id)
 {
 	std::lock_guard<std::mutex> lock(guard_);
@@ -164,19 +193,19 @@ void messenger<T, OArchive, IArchive>::on_new_connection(connection_ptr& connect
 
 	auto sentinel = std::weak_ptr<void>(conn_info.sentinel);
 	connection->on_msg.emplace_front(
-		[weak_this, info, sentinel](connection::id_t id, byte_buffer msg, data_channel channel, connection::details details) {
+		[weak_this, info, sentinel](connection::id_t id, byte_buffer msg, data_channel channel, const connection::details& details) {
 			auto shared_this = weak_this.lock();
 			if(!shared_this || sentinel.expired())
 			{
 				return;
 			}
 
-			shared_this->on_raw_msg(id, msg, channel, info);
+			shared_this->on_raw_msg(id, msg, channel, info, details);
 		});
+    connection->start();
 
 	on_connect(connection->id, std::move(conn_info), info);
 
-	connection->start();
 }
 
 template <typename T, typename OArchive, typename IArchive>
@@ -216,7 +245,8 @@ void messenger<T, OArchive, IArchive>::on_disconnect(connection::id_t id, error_
 
 template <typename T, typename OArchive, typename IArchive>
 void messenger<T, OArchive, IArchive>::on_raw_msg(connection::id_t id, byte_buffer& raw_msg,
-												  data_channel channel, const user_info_ptr& info)
+												  data_channel channel, const user_info_ptr& info,
+                                                  const connection::details& details)
 {
 	try
 	{
@@ -224,7 +254,7 @@ void messenger<T, OArchive, IArchive>::on_raw_msg(connection::id_t id, byte_buff
 
 		if(detail::is_msg(channel))
 		{
-			on_msg(id, msg, info);
+			on_msg(id, msg, info, details);
 		}
 		else
 		{
@@ -243,12 +273,12 @@ void messenger<T, OArchive, IArchive>::on_raw_msg(connection::id_t id, byte_buff
 }
 
 template <typename T, typename OArchive, typename IArchive>
-void messenger<T, OArchive, IArchive>::on_msg(connection::id_t id, msg_t& msg, const user_info_ptr& info)
+void messenger<T, OArchive, IArchive>::on_msg(connection::id_t id, msg_t& msg, const user_info_ptr& info, const connection::details& details)
 {
 
 	if(info->on_msg)
 	{
-		info->on_msg(id, std::move(msg));
+		info->on_msg(id, std::move(msg), details);
 	}
 }
 
