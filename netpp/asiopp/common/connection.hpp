@@ -244,8 +244,8 @@ template <typename socket_type>
 inline void asio_connection<socket_type>::start()
 {
     connected_ = true;
-    asio::dispatch(*strand_, std::bind(&start_read, this->shared_from_this()));
-    asio::dispatch(*strand_, std::bind(&await_output, this->shared_from_this()));
+    asio::dispatch(*strand_, std::bind(&asio_connection::start_read, this->shared_from_this()));
+    asio::dispatch(*strand_, std::bind(&asio_connection::await_output, this->shared_from_this()));
 
     if(heartbeat_check_interval_ > std::chrono::seconds::zero())
     {
