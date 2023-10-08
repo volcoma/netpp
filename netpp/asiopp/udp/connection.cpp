@@ -12,22 +12,20 @@ void udp_connection::set_endpoint(udp::endpoint endpoint)
 
 void udp_connection::start_read()
 {
-    strand_->post([ this, shared_this = shared_from_this() ]() {
 
-        if(stopped())
-        {
-            return;
-        }
+    if(stopped())
+    {
+        return;
+    }
 
-        // Start an asynchronous operation to read a certain number of bytes.
-        // Here std::bind + shared_from_this is used because of the composite op async_*
-        // We want it to operate on valid data until the handler is called.
-        socket_->async_receive_from(asio::buffer(input_buffer_.data(),
-                                                 input_buffer_.size()),
-                                    remote_endpoint_,
-                                    strand_->wrap(std::bind(&base_type::handle_read, shared_this,
-                                                            std::placeholders::_1, std::placeholders::_2)));
-    });
+    // Start an asynchronous operation to read a certain number of bytes.
+    // Here std::bind + shared_from_this is used because of the composite op async_*
+    // We want it to operate on valid data until the handler is called.
+    socket_->async_receive_from(asio::buffer(input_buffer_.data(),
+                                             input_buffer_.size()),
+                                remote_endpoint_,
+                                strand_->wrap(std::bind(&base_type::handle_read, this->shared_from_this(),
+                                                        std::placeholders::_1, std::placeholders::_2)));
 }
 int64_t udp_connection::handle_read(const error_code& ec, std::size_t size)
 {
@@ -108,19 +106,17 @@ int64_t udp_connection::handle_read(const error_code& ec, const uint8_t* buf, st
 
 void udp_connection::start_write()
 {
-    strand_->post([ this, shared_this = shared_from_this() ]() {
-        if(stopped())
-        {
-            return;
-        }
+    if(stopped())
+    {
+        return;
+    }
 
-        // Here std::bind + shared_from_this is used because of the composite op async_*
-        // We want it to operate on valid data until the handler is called.
-        // Start an asynchronous operation to send all messages.
-        socket_->async_send_to(this->get_output_buffers(), this->endpoint_,
-                               strand_->wrap(std::bind(&base_type::handle_write, shared_this,
-                                                       std::placeholders::_1, std::placeholders::_2)));
-    });
+    // Here std::bind + shared_from_this is used because of the composite op async_*
+    // We want it to operate on valid data until the handler is called.
+    // Start an asynchronous operation to send all messages.
+    socket_->async_send_to(this->get_output_buffers(), this->endpoint_,
+                           strand_->wrap(std::bind(&base_type::handle_write, this->shared_from_this(),
+                                                   std::placeholders::_1, std::placeholders::_2)));
 }
 
 } // namespace udp

@@ -1,14 +1,6 @@
 #pragma once
 #include "../common/connection.hpp"
 
-#include <asio/basic_stream_socket.hpp>
-#include <asio/buffer.hpp>
-#include <asio/error.hpp>
-#include <asio/io_service.hpp>
-#include <asio/read.hpp>
-#include <asio/steady_timer.hpp>
-#include <asio/strand.hpp>
-#include <asio/write.hpp>
 #include <chrono>
 #include <deque>
 #include <thread>

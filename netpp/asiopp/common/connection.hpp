@@ -9,10 +9,13 @@
 #include <asio/steady_timer.hpp>
 #include <asio/strand.hpp>
 #include <asio/write.hpp>
+#include <asio/use_future.hpp>
+#include <asio/dispatch.hpp>
 #include <chrono>
 #include <deque>
 #include <thread>
 #include <mutex>
+#include <future>
 
 namespace net
 {
@@ -241,8 +244,8 @@ template <typename socket_type>
 inline void asio_connection<socket_type>::start()
 {
     connected_ = true;
-    strand_->post(std::bind(&start_read, this->shared_from_this()));
-    strand_->post(std::bind(&await_output, this->shared_from_this()));
+    asio::dispatch(*strand_, std::bind(&start_read, this->shared_from_this()));
+    asio::dispatch(*strand_, std::bind(&await_output, this->shared_from_this()));
 
     if(heartbeat_check_interval_ > std::chrono::seconds::zero())
     {
@@ -254,18 +257,18 @@ inline void asio_connection<socket_type>::start()
 template <typename socket_type>
 inline void asio_connection<socket_type>::stop(const error_code& ec)
 {
-
     if(!connected_.exchange(false))
     {
         return;
     }
-
     {
         std::lock_guard<std::mutex> lock(guard_);
         non_empty_output_queue_.cancel();
         heartbeat_check_timer_.cancel();
         heartbeat_reply_timer_.cancel();
-        strand_->post(std::bind(&stop_socket, this->shared_from_this()));
+
+        auto future = asio::dispatch(*strand_, asio::use_future(std::bind(&stop_socket, this->shared_from_this())));
+        future.wait();
     }
 
     {
