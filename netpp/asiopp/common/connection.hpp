@@ -267,7 +267,7 @@ inline void asio_connection<socket_type>::stop(const error_code& ec)
         heartbeat_check_timer_.cancel();
         heartbeat_reply_timer_.cancel();
 
-        auto future = asio::dispatch(*strand_, asio::use_future(std::bind(&stop_socket, this->shared_from_this())));
+        auto future = asio::dispatch(*strand_, asio::use_future(std::bind(&asio_connection::stop_socket, this->shared_from_this())));
         future.wait();
     }
 

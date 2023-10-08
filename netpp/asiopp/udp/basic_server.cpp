@@ -57,7 +57,7 @@ void basic_server::start()
         }
     }
 
-    asio::dispatch(*strand_, std::bind(&async_recieve, this->shared_from_this(), socket));
+    asio::dispatch(*strand_, std::bind(&basic_server::async_recieve, this->shared_from_this(), socket));
 }
 
 void basic_server::on_recv_data(const std::shared_ptr<udp::socket>& socket, std::size_t size)
